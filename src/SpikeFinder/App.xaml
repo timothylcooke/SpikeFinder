@@ -1,0 +1,130 @@
+﻿<Application x:Class="SpikeFinder.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:math="http://hexinnovation.com/math"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:toast="clr-namespace:SpikeFinder.Toast"
+             Startup="Application_Startup">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- MahApps.Metro resource dictionaries -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
+
+                <!-- Accent and AppTheme setting -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml" />
+
+                <!-- ToastNotifications default style -->
+                <ResourceDictionary Source="pack://application:,,,/ToastNotifications.Messages;component/Themes/Default.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <math:MathConverter x:Key="Math" />
+
+            <ContextMenu x:Key="SpikesControlContextMenu">
+                <MenuItem Name="UnmarkedCursors" IsEnabled="{Binding UnmarkedCursors.Count, ConverterParameter='x>0', Converter={StaticResource Math}}" ItemsSource="{Binding UnmarkedCursors}" Header="Add Missing Cursor">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                            <Setter Property="Header" Value="{Binding DisplayName}"/>
+                            <Setter Property="Command" Value="{Binding DataContext.AddMissingCursorCommand, RelativeSource={RelativeSource AncestorType=ItemsPresenter}}" />
+                            <Setter Property="CommandParameter" Value="{Binding}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <MenuItem x:Name="DeleteCursor" Command="{Binding DeleteCursorCommand}" CommandParameter="{Binding Tag, RelativeSource={RelativeSource Self}}" Header="{Binding Tag.DisplayName, ConverterParameter='$`Delete {x} Cursor`', Converter={StaticResource Math}, RelativeSource={RelativeSource Self}, FallbackValue='Delete Cursor'}" IsEnabled="{Binding Tag, ConverterParameter='x != null', Converter={StaticResource Math}, RelativeSource={RelativeSource Self}}"></MenuItem>
+            </ContextMenu>
+            
+            <Style TargetType="TextBlock" x:Key="NotificationMessage">
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Margin" Value="5,0,0,0" />
+                <Setter Property="FontSize" Value="15" />
+            </Style>
+
+            <Style TargetType="TextBlock" x:Key="NotificationTitle" BasedOn="{StaticResource NotificationMessage}">
+                <Setter Property="FontWeight" Value="Bold" />
+            </Style>
+
+            <Style TargetType="toast:SfNotificationDisplayPart">
+                <Style.Setters>
+                    <Setter Property="Focusable" Value="True" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="toast:SfNotificationDisplayPart">
+                                <Border x:Name="ContentWrapper" Style="{DynamicResource NotificationBorder}">
+                                    <Grid x:Name="ContentContainer">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="25" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto"  />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Rectangle x:Name="Icon" Width="18" Height="18" Grid.RowSpan="2" />
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock x:Name="Title" Text="{Binding Title, Mode=OneTime}" Style="{StaticResource NotificationTitle}" Visibility="{Binding TitleVisibility}" />
+                                            <Rectangle Height="5" Visibility="{Binding TitleVisibility}" />
+                                            <TextBlock x:Name="Message" Text="{Binding Message, Mode=OneTime}" Style="{StaticResource NotificationMessage}" />
+                                        </StackPanel>
+                                        <Button x:Name="CloseButton" Style="{StaticResource NotificationCloseButton}" Padding="1" Grid.Column="2" Command="{Binding CloseCommand}" Visibility="{Binding Options.ShowCloseButton, Converter={StaticResource Math}, ConverterParameter='x ? `Visible` : `Collapsed`'}">
+                                            <Rectangle Style="{StaticResource CloseButtonIcon}" Margin="2">
+                                                <Rectangle.OpacityMask>
+                                                    <VisualBrush Stretch="Fill" Visual="{StaticResource CloseIcon}" />
+                                                </Rectangle.OpacityMask>
+                                            </Rectangle>
+                                        </Button>
+                                        <Button x:Name="CommandButton" HorizontalAlignment="Right" Grid.Row="1" Grid.ColumnSpan="3" Content="{Binding ActionButton.ButtonText}" Command="{Binding ActionButton.Command}" CommandParameter="{Binding ActionButton.CommandParameter}" MinWidth="75" Margin="0,5,0,0" Visibility="{Binding ActionButtonVisibility}" />
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding NotificationType}" Value="{x:Static toast:Severity.Error}">
+                                        <Setter TargetName="ContentWrapper" Property="Background" Value="{StaticResource ErrorColorBrush}" />
+                                        <Setter TargetName="Icon" Property="Fill">
+                                            <Setter.Value>
+                                                <VisualBrush Visual="{StaticResource ErrorIcon}" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding NotificationType}" Value="{x:Static toast:Severity.Information}">
+                                        <Setter TargetName="ContentWrapper" Property="Background" Value="{StaticResource InformationColorBrush}" />
+                                        <Setter TargetName="Icon" Property="Fill">
+                                            <Setter.Value>
+                                                <VisualBrush Visual="{StaticResource InformationIcon}" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding NotificationType}" Value="{x:Static toast:Severity.Success}">
+                                        <Setter TargetName="ContentWrapper" Property="Background" Value="{StaticResource SuccessColorBrush}" />
+                                        <Setter TargetName="Icon" Property="Fill">
+                                            <Setter.Value>
+                                                <VisualBrush Visual="{StaticResource SuccessIcon}" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding NotificationType}" Value="{x:Static toast:Severity.Warning}">
+                                        <Setter TargetName="ContentWrapper" Property="Background" Value="{StaticResource WarningColorBrush}" />
+                                        <Setter TargetName="Icon" Property="Fill">
+                                            <Setter.Value>
+                                                <VisualBrush Visual="{StaticResource WarningIcon}" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding Options.FontSize, Converter={StaticResource Math}, ConverterParameter='x!=null'}" Value="True">
+                                        <Setter TargetName="Title" Property="FontSize" Value="{Binding Options.FontSize}" />
+                                        <Setter TargetName="Message" Property="FontSize" Value="{Binding Options.FontSize}" />
+                                        <Setter TargetName="CommandButton" Property="FontSize" Value="{Binding Options.FontSize}" />
+                                    </DataTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style.Setters>
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

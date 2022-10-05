@@ -1,0 +1,64 @@
+﻿<rxui:ReactiveUserControl x:TypeArguments="viewModels:DataGridViewModel"
+                          x:Class="SpikeFinder.Views.DataGridView"
+                          xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                          xmlns:rxui="http://reactiveui.net"
+                          xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                          xmlns:sf="http://schemas.syncfusion.com/wpf"
+                          xmlns:converters="clr-namespace:SpikeFinder.Converters"
+                          xmlns:viewModels="clr-namespace:SpikeFinder.ViewModels"
+                          mc:Ignorable="d"
+                          d:DataContext="{d:DesignInstance viewModels:DataGridViewModel}"
+                          d:DesignHeight="450" d:DesignWidth="800"
+                          DataContext="{Binding ViewModel, RelativeSource={RelativeSource Self}}"
+                          Padding="20">
+    <UserControl.Resources>
+        <converters:ValueWithStandardDeviationConverter x:Key="ValueWithStandardDeviationConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="20" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBox x:Name="SearchBox" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+
+        <sf:SfDataGrid x:Name="Grid" Grid.Row="2" ItemsSource="{Binding Exams}" SelectionMode="Extended" SelectedIndex="{Binding GridSelectedItems, Mode=OneWayToSource}" AutoGenerateColumns="False" AllowResizingColumns="True" AllowDraggingColumns="True" AllowFiltering="True" GridCopyOption="CopyData,IncludeHeaders">
+            <sf:SfDataGrid.Columns>
+                <sf:GridTextColumn HeaderText="Pt #" ValueBinding="{Binding PatientNumber}" />
+                <sf:GridTextColumn HeaderText="Last Name" ValueBinding="{Binding LastName}" />
+                <sf:GridTextColumn HeaderText="First Name" ValueBinding="{Binding FirstName}" />
+                <sf:GridDateTimeColumn ValueBinding="{Binding DOB}" />
+                <sf:GridDateTimeColumn HeaderText="Exam Time" ValueBinding="{Binding Timestamp}" Pattern="CustomPattern" CustomPattern="g" />
+                <sf:GridTextColumn ValueBinding="{Binding Eye}" />
+                <sf:GridTextColumn HeaderText="Mode" ValueBinding="{Binding MeasureModeDescription}" />
+                <sf:GridNumericColumn ValueBinding="{Binding Wavelength}" />
+                <sf:GridTextColumn ValueBinding="{Binding CCT, Converter={StaticResource ValueWithStandardDeviationConverter}, ConverterParameter=000}" />
+                <sf:GridTextColumn ValueBinding="{Binding AD, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding LT, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding VD, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding RT, Converter={StaticResource ValueWithStandardDeviationConverter}, ConverterParameter=000}" />
+                <sf:GridTextColumn ValueBinding="{Binding AL, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding K1, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding Axis1, Converter={StaticResource ValueWithStandardDeviationConverter}, ConverterParameter=0.0}" />
+                <sf:GridTextColumn ValueBinding="{Binding K2, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding WTW, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding ICX, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding ICY, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding PD, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding PCX, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridTextColumn ValueBinding="{Binding PCY, Converter={StaticResource ValueWithStandardDeviationConverter}}" />
+                <sf:GridCheckBoxColumn HeaderText="Has Spikes" ValueBinding="{Binding HasSpikes}" />
+                <sf:GridTextColumn HeaderText="Notes" ValueBinding="{Binding PersistedSpikes.Notes}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderCCT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAD, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderLT, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderVD, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderRT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAL, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
+            </sf:SfDataGrid.Columns>
+        </sf:SfDataGrid>
+    </Grid>
+</rxui:ReactiveUserControl>
