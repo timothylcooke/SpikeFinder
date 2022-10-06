@@ -14,12 +14,12 @@ namespace SpikeFinder.ViewModels
     {
         public DatabaseSettingsViewModel()
         {
-            SqliteDatabasePath = SfMachineSettings.Instance?.SqliteDatabasePath ?? SfSettings.SettingsFilePath(Environment.SpecialFolder.CommonApplicationData, "Database.sqlite3db");
+            SqliteDatabasePath = SfMachineSettings.Instance.SqliteDatabasePath ?? SfSettings.DefaultSqlitePath;
 
             string? connStr = null;
             try
             {
-                connStr = SfMachineSettings.Instance?.ConnectionString?.Unprotect();
+                connStr = SfMachineSettings.Instance.ConnectionString?.Unprotect();
             }
             catch { }
 

@@ -4,6 +4,7 @@ using DynamicData;
 using MahApps.Metro.Controls;
 using MahApps.Metro.SimpleChildWindow;
 using ReactiveUI;
+using SpikeFinder.Extensions;
 using SpikeFinder.Settings;
 using SpikeFinder.Toast;
 using SpikeFinder.ViewModels;
@@ -51,7 +52,17 @@ namespace SpikeFinder.Views
                 d(Observable.FromEventPattern<EventHandler, EventArgs>(e => Closed += e, e => Closed -= e)
                     .Subscribe(_ => Application.Current.Shutdown()));
 
-                IRoutableViewModel firstViewModel = SfMachineSettings.Instance is { } settings && settings.SqliteDatabasePath is not null && settings.ConnectionString is not null ? new LoadGridViewModel() : new DatabaseSettingsViewModel();
+                var isValidSettings = SfMachineSettings.Instance is { } settings && settings.SqliteDatabasePath is not null && settings.ConnectionString is not null;
+
+                if (!isValidSettings && MySqlExtensions.ReadConnectionStringFromEyeSuite() is { } connectionString)
+                {
+                    SfMachineSettings.Instance.ConnectionString ??= new ProtectedString(connectionString);
+                    SfMachineSettings.Instance.SqliteDatabasePath ??= SfSettings.DefaultSqlitePath;
+
+                    isValidSettings = true;
+                }
+
+                IRoutableViewModel firstViewModel = isValidSettings ? new LoadGridViewModel() : new DatabaseSettingsViewModel();
 
                 d(Observable.Return(firstViewModel).InvokeCommand(ViewModel.HostScreen.Router.Navigate));
             });

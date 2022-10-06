@@ -38,6 +38,8 @@ namespace SpikeFinder.Settings
         internal static string SettingsFilePath(Environment.SpecialFolder folder, string fileName) => Path.Combine(AppDataFolder(folder), fileName);
 
 
+        public static string DefaultSqlitePath = SettingsFilePath(Environment.SpecialFolder.CommonApplicationData, "Database.sqlite3db");
+
         protected static T GetInstance<T>(Environment.SpecialFolder folder, ref T? instance)
             where T : SfSettings
         {
