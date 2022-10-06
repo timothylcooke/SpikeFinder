@@ -45,10 +45,18 @@ Name: "{commonappdata}\SpikeFinder"; Flags: uninsneveruninstall; Permissions: us
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Run SpikeFinder now"; Flags: postinstall nowait skipifsilent
-; See https://github.com/DomGries/InnoDependencyInstaller/blob/master/CodeDependencies.iss
 
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "app}"
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
+
+[Tasks]
+Name: desktopicon; Description: {cm:CreateDesktopIcon}; Flags: unchecked
 
 [Code]
+// See https://github.com/DomGries/InnoDependencyInstaller/blob/master/CodeDependencies.iss
+
 type
   TDependency_Entry = record
     Filename: String;
