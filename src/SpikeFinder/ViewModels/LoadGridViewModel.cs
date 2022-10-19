@@ -40,6 +40,7 @@ namespace SpikeFinder.ViewModels
                 d(CreateSettingsCommand());
 
                 d(InitializeLoadingItems());
+
                 d(FetchData());
             });
         }
@@ -101,29 +102,34 @@ namespace SpikeFinder.ViewModels
             return disposables;
         }
 
-        private IObservable<List<LenstarExam>> LoadLenstarExams(IScheduler scheduler) => Observable.Zip(
-            Observable.StartAsync(CountExams, scheduler).ObserveOnDispatcher().Do(x => TotalExams = x),
+        private IObservable<List<LenstarExam>> LoadLenstarExams(IScheduler scheduler) =>
+            Observable.StartAsync(CountExams, scheduler).ObserveOnDispatcher().Do(x => TotalExams = x)
+            .Select(_ =>
+                Observable.Zip(
+                    Observable.StartAsync(token => LoadBiometryMeasurements(_loadBiometryValuesProgress, token), scheduler),
+                    Observable.StartAsync(token => LoadMeasureModesAndWavelengths(_loadMeasureModesAndWavelengthsProgress, token), scheduler),
+                    Observable.StartAsync(token => LoadExamDemographics(_loadDemographicsProgress, token), scheduler),
 
-            Observable.StartAsync(token => LoadBiometryMeasurements(_loadBiometryValuesProgress, token), scheduler),
-            Observable.StartAsync(token => LoadMeasureModesAndWavelengths(_loadMeasureModesAndWavelengthsProgress, token), scheduler),
-            Observable.StartAsync(token => LoadExamDemographics(_loadDemographicsProgress, token), scheduler),
+                    Observable.StartAsync(token => LoadKeratometry(_loadK1Progress, KsValue.FlatK, token), scheduler),
+                    Observable.StartAsync(token => LoadKeratometry(_loadK2Progress, KsValue.SteepK, token), scheduler),
+                    Observable.StartAsync(token => LoadAxis1s(_loadAxis1Progress, token), scheduler),
 
-            Observable.StartAsync(token => LoadKeratometry(_loadK1Progress, KsValue.FlatK, token), scheduler),
-            Observable.StartAsync(token => LoadKeratometry(_loadK2Progress, KsValue.SteepK, token), scheduler),
-            Observable.StartAsync(token => LoadAxis1s(_loadAxis1Progress, token), scheduler),
+                    Observable.StartAsync(token => LoadWtwValue(_loadWtwProgress, WtwValue.WTW, token), scheduler),
+                    Observable.StartAsync(token => LoadWtwValue(_loadIcxProgress, WtwValue.ICX, token), scheduler),
+                    Observable.StartAsync(token => LoadWtwValue(_loadIcyProgress, WtwValue.ICY, token), scheduler),
 
-            Observable.StartAsync(token => LoadWtwValue(_loadWtwProgress, WtwValue.WTW, token), scheduler),
-            Observable.StartAsync(token => LoadWtwValue(_loadIcxProgress, WtwValue.ICX, token), scheduler),
-            Observable.StartAsync(token => LoadWtwValue(_loadIcyProgress, WtwValue.ICY, token), scheduler),
+                    Observable.StartAsync(token => LoadPupilValue(_loadPdProgress, PupilValue.PD, token), scheduler),
+                    Observable.StartAsync(token => LoadPupilValue(_loadPcxProgress, PupilValue.PCX, token), scheduler),
+                    Observable.StartAsync(token => LoadPupilValue(_loadPcyProgress, PupilValue.PCY, token), scheduler),
 
-            Observable.StartAsync(token => LoadPupilValue(_loadPdProgress, PupilValue.PD, token), scheduler),
-            Observable.StartAsync(token => LoadPupilValue(_loadPcxProgress, PupilValue.PCX, token), scheduler),
-            Observable.StartAsync(token => LoadPupilValue(_loadPcyProgress, PupilValue.PCY, token), scheduler),
+                    Observable.StartAsync(token => SQLiteDatabase.LoadPersistedSpikes(_loadPersistedSpikes!, _disposeDescription!, token), scheduler),
 
-            Observable.StartAsync(token => SQLiteDatabase.LoadPersistedSpikes(_loadPersistedSpikes!, _disposeDescription!, token), scheduler),
-
-            (_, biometryMeasurements, measureModesAndWavelengths, demographics, k1, k2, axis1, wtw, icx, icy, pd, pcx, pcy, spikes) => AggregateLenstarExamData(demographics, biometryMeasurements, measureModesAndWavelengths, k1, k2, axis1, wtw, icx, icy, pd, pcx, pcy, spikes)
-        ).SubscribeOn(scheduler);
+                    (biometryMeasurements, measureModesAndWavelengths, demographics, k1, k2, axis1, wtw, icx, icy, pd, pcx, pcy, spikes) => AggregateLenstarExamData(demographics, biometryMeasurements, measureModesAndWavelengths, k1, k2, axis1, wtw, icx, icy, pd, pcx, pcy, spikes)
+                )
+            )
+            .Switch()
+            .CatchAndShowErrors()
+            .SubscribeOn(scheduler);
 
 
         private static Task<Queue<T>> LoadValues<T>(LoadingItemViewModel? progress, Func<T, int> getExamId, Func<DbDataReader, T> readValue, string query, CancellationToken token)

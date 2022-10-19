@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
+using SpikeFinder.Extensions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -60,7 +61,7 @@ namespace SpikeFinder.Settings
                         .Select(x => x.EventArgs)
                         .Throttle(TimeSpan.FromMilliseconds(500)).Select(_ => JsonConvert.SerializeObject(instanceRef)).StartWith(initialJson).DistinctUntilChanged().Skip(1)
                         .SelectMany((x, _) => Observable.StartAsync(token => File.WriteAllTextAsync(filePath, x, token), RxApp.TaskpoolScheduler))
-                        .Catch((Exception ex) => Observable.Return(Unit.Default).Do(_ => App.SpikeFinderMainWindow.NotifyException(ex)).Skip(1)).Subscribe().DisposeWith(instance!._disposables);
+                        .CatchAndShowErrors().Subscribe().DisposeWith(instance!._disposables);
                 }
             }
 

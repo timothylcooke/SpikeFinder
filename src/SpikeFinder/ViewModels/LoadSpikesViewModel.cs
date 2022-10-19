@@ -156,7 +156,7 @@ namespace SpikeFinder.ViewModels
                                     return usable.Any() ? (int)Math.Round(usable.Average(y => y.ScanPos)) : new int?();
                                 });
                         })
-                        .Catch((Exception ex) => { App.SpikeFinderMainWindow.NotifyException(ex); return Observable.Never<Dictionary<CursorElement, int?>>(); })
+                        .CatchAndShowErrors()
                         .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE]));
 
 
@@ -201,7 +201,7 @@ namespace SpikeFinder.ViewModels
                     .Select(x => new SpikesViewModel(exam, x.renderedSpikes[-1].Spikes.Spikes, x.renderedSpikes[-1].Spikes.MaxValue, MergeImages(x.renderedSpikes.Select(x => x.Value.Image)), x.cursors))
                     .Cast<IRoutableViewModel>()
                     .ObserveOnDispatcher()
-                    .Catch((Exception ex) => Observable.Return<IRoutableViewModel?>(null).Do(_ => App.SpikeFinderMainWindow.NotifyException(ex)).Skip(1))
+                    .CatchAndShowErrors()
                     .Select(x => HostScreen.Router.NavigateBack.Execute().Select(_ => x))
                     .Switch()
                     .WhereNotNull()
