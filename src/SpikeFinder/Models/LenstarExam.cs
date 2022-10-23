@@ -19,7 +19,7 @@ namespace SpikeFinder.Models
         string FirstName,
         DateTime DOB,
         DateTime Timestamp,
-        MeasureMode? MeasureMode,
+        MeasureMode? LenstarMeasureMode,
         double? Wavelength,
         ValueWithStandardDeviation? CCT,
         ValueWithStandardDeviation? AD,
@@ -42,7 +42,9 @@ namespace SpikeFinder.Models
 
         public string Key { get; } = ComputeKey(Uuid, Eye);
         public string SearchText { get; } = $"{FirstName} {LastName} {PatientNumber} {DOB:MM/dd/yyyy}".ToLowerInvariant();
-        public string? MeasureModeDescription => MeasureMode.HasValue ? _dict[MeasureMode.Value] : null;
+
+        public MeasureMode? MeasureMode => PersistedSpikes?.MeasureMode ?? LenstarMeasureMode;
+        public string? MeasureModeDescription => MeasureMode is { } m ? MeasureModesWithDescription[m] : null;
         public bool IsMatch(string searchQuery) => string.IsNullOrWhiteSpace(searchQuery) || Fuzz.PartialRatio(searchQuery, SearchText) >= 95;
 
         public bool HasSpikes => PersistedSpikes != null;
@@ -123,6 +125,6 @@ namespace SpikeFinder.Models
             }
         }
 
-        private static readonly Dictionary<MeasureMode, string> _dict = typeof(MeasureMode).GetFields(BindingFlags.Public | BindingFlags.Static).ToDictionary(x => (MeasureMode)x.GetValue(null)!, x => x.GetCustomAttributes(typeof(DescriptionAttribute), false).OfType<DescriptionAttribute>().Single().Description);
+        internal static readonly Dictionary<MeasureMode, string> MeasureModesWithDescription = typeof(MeasureMode).GetFields(BindingFlags.Public | BindingFlags.Static).ToDictionary(x => (MeasureMode)x.GetValue(null)!, x => x.GetCustomAttributes(typeof(DescriptionAttribute), false).OfType<DescriptionAttribute>().Single().Description);
     }
 }

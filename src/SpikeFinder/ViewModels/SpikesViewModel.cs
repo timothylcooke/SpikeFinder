@@ -1,11 +1,11 @@
 ﻿#nullable enable
 
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Models;
 using SpikeFinder.SQLite;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reflection;
@@ -27,6 +27,9 @@ namespace SpikeFinder.ViewModels
         public override string? UrlPathSegment { get; }
         public override string Title { get; }
 
+        [Reactive] public MeasureMode MeasureMode { get; set; }
+        public object[] MeasureModes { get; }
+
         public string Notes { get; set; }
 
         public SpikesViewModel(LenstarExam exam, double[] spikes, double maxValue, byte[] image, LenstarCursorPositions cursors)
@@ -34,11 +37,14 @@ namespace SpikeFinder.ViewModels
             UrlPathSegment = $"/Spikes/{exam.Key}";
             Title = $"{exam.FirstName} {exam.LastName} (DOB {exam.DOB:d}; #{exam.PatientNumber}) {exam.Eye} measurement {exam.Timestamp:d}";
 
+            MeasureModes = LenstarExam.MeasureModesWithDescription.Select(x => new { Value = x.Key, Description = x.Value }).ToArray();
+
             Exam = exam;
             Spikes = spikes;
             MaxValue = maxValue;
             Image = image;
             Cursors = cursors;
+            MeasureMode = exam.MeasureMode ?? MeasureMode.PHAKIC;
             Notes = exam.PersistedSpikes?.Notes ?? "";
 
             SpikeControlCursors = new ObservableCollection<CursorPosition>(
@@ -60,7 +66,7 @@ namespace SpikeFinder.ViewModels
 
         private async Task SaveAsync(CancellationToken token)
         {
-            await SQLiteDatabase.SaveSpikes(Exam.Key, new PersistedSpikes(SpikeControlCursors, Notes), token);
+            await SQLiteDatabase.SaveSpikes(Exam.Key, new PersistedSpikes(SpikeControlCursors, Notes, MeasureMode), token);
         }
     }
 }

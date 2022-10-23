@@ -25,7 +25,7 @@ namespace SpikeFinder.SQLite
             {
                 using var cmd = db.CreateCommand();
 
-                cmd.CommandText = @"INSERT OR REPLACE INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes);";
+                cmd.CommandText = @"INSERT OR REPLACE INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes, @MeasureMode);";
                 cmd.Parameters.AddWithValue("ExamKey", examKey);
                 cmd.Parameters.AddWithValue("PosteriorCornea", spikes.PosteriorCornea);
                 cmd.Parameters.AddWithValue("AnteriorLens", spikes.AnteriorLens);
@@ -33,6 +33,7 @@ namespace SpikeFinder.SQLite
                 cmd.Parameters.AddWithValue("ILM", spikes.ILM);
                 cmd.Parameters.AddWithValue("RPE", spikes.RPE);
                 cmd.Parameters.AddWithValue("Notes", spikes.Notes);
+                cmd.Parameters.AddWithValue("MeasureMode", (object?)spikes.MeasureMode ?? DBNull.Value);
 
                 if (await cmd.ExecuteNonQueryAsync() != 1)
                     throw new Exception("Failed to save the spikes.");
@@ -54,10 +55,11 @@ namespace SpikeFinder.SQLite
             using var reader = await cmd.ExecuteReaderAsync(token);
 
             async Task<int?> ReadInt32(int index) => await reader.IsDBNullAsync(index) ? new int?() : reader.GetInt32(index);
+            async Task<byte?> ReadByte(int index) => await reader.IsDBNullAsync(index) ? new byte?() : reader.GetByte(index);
 
             while (await reader.ReadAsync())
             {
-                results[reader.GetString(0)] = new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6));
+                results[reader.GetString(0)] = new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6), (MeasureMode?)await ReadByte(7));
                 loadingProgress.ActualProgress++;
             }
 
@@ -91,9 +93,13 @@ namespace SpikeFinder.SQLite
                             await sql.UpgradeToV1(cmd);
                             version = 1;
                             break;
+                        case 1:
+                            await sql.UpgradeToV2(cmd);
+                            version = 2;
+                            break;
                     }
 
-                    const int ExpectedVersion = 1;
+                    const int ExpectedVersion = 2;
                     if (version != ExpectedVersion)
                         throw new Exception($"The database is version {version}. This version of SpikeFinder is only compatible with version {ExpectedVersion}.");
                 }, token);
@@ -113,7 +119,18 @@ INSERT INTO Version VALUES(1);
             if (await cmd.ExecuteNonQueryAsync() != 1)
                 throw new Exception("Failed to upgrade database to v1");
         }
+        private async Task UpgradeToV2(SQLiteCommand cmd)
+        {
+            cmd.CommandText = "DELETE FROM Version;";
+            await cmd.ExecuteNonQueryAsync();
 
+            cmd.CommandText = @"
+ALTER TABLE Spikes ADD MeasureMode INT;
+INSERT INTO Version VALUES(2);
+";
+            if (await cmd.ExecuteNonQueryAsync() < 1)
+                throw new Exception("Failed to upgrade database to v2");
+        }
         private Task OpenAsync(CancellationToken token) => _sql.OpenAsync(token);
         private SQLiteCommand CreateCommand() => _sql.CreateCommand();
         private async Task ExecuteTransaction(Func<Task> transactedSql, CancellationToken token)
