@@ -50,9 +50,6 @@ namespace SpikeFinder.ViewModels
 
         [Reactive] public ReadOnlyObservableCollection<LenstarExam> Exams { get; private set; }
         [Reactive] public string SearchQuery { get; set; }
-        [Reactive] public double GridVScrollOffset { get; set; }
-        [Reactive] public ColumnSortInfo? GridColumnSortInfo { get; set; }
-        public int SelectedRowIndex { get; set; } = -1;
 
         public override string? Title => null;
         public override string UrlPathSegment => "/";

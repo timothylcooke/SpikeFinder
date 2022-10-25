@@ -17,6 +17,7 @@ namespace SpikeFinder
             Locator.CurrentMutable.RegisterLazySingleton(() => this);
 
             Locator.CurrentMutable.RegisterLazySingleton(() => new MainWindowViewModel());
+            Locator.CurrentMutable.RegisterLazySingleton(() => new DataGridView());
             Locator.CurrentMutable.RegisterLazySingleton(() => new MainWindow());
 
             Locator.CurrentMutable.RegisterViewsForViewModels(Assembly.GetEntryAssembly()!);
