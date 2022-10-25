@@ -31,6 +31,10 @@ namespace SpikeFinder.Extensions
             addParameters?.Invoke(cmd);
 
             await using var reader = await cmd.ExecuteReaderAsync(token);
+
+            if (reader is null)
+                throw new TaskCanceledException();
+
             await readResults(reader);
 
             return accumulateResult();
