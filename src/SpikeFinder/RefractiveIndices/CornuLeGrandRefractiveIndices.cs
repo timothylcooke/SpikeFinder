@@ -2,7 +2,7 @@
 
 namespace SpikeFinder.RefractiveIndices
 {
-    public class CornuLeGrandRefractiveIndices : RefractiveIndexMethod
+    public sealed class CornuLeGrandRefractiveIndices : RefractiveIndexMethod
     {
         public static CornuLeGrandRefractiveIndices Instance { get; } = new();
 

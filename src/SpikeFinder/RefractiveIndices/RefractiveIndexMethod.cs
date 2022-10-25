@@ -17,9 +17,9 @@ namespace SpikeFinder.RefractiveIndices
         public static RefractiveIndexMethod Current => GetRefractiveIndexMethod(SfMachineSettings.Instance.RefractiveIndexMethod);
         public static RefractiveIndexMethod GetRefractiveIndexMethod(RefractiveIndexMethods method) => method switch
         {
-            RefractiveIndexMethods.Lenstar => LenstarRefractiveIndices.Instance,
             RefractiveIndexMethods.Argos => ArgosRefractiveIndices.Instance,
             RefractiveIndexMethods.CornuLeGrand => CornuLeGrandRefractiveIndices.Instance,
+            RefractiveIndexMethods.Lenstar => LenstarRefractiveIndices.Instance,
             RefractiveIndexMethods.Navarro => NavarroRefractiveIndices.Instance,
             _ => throw new InvalidEnumArgumentException()
         };

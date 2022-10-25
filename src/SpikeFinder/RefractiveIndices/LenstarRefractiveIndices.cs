@@ -2,7 +2,7 @@
 
 namespace SpikeFinder.RefractiveIndices
 {
-    public class LenstarRefractiveIndices : RefractiveIndexMethod
+    public sealed class LenstarRefractiveIndices : RefractiveIndexMethod
     {
         public static LenstarRefractiveIndices Instance { get; } = new();
 

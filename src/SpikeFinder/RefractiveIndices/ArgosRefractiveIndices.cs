@@ -1,6 +1,6 @@
 ﻿namespace SpikeFinder.RefractiveIndices
 {
-    public class ArgosRefractiveIndices : RefractiveIndexMethod
+    public sealed class ArgosRefractiveIndices : RefractiveIndexMethod
     {
         public static ArgosRefractiveIndices Instance { get; } = new();
 

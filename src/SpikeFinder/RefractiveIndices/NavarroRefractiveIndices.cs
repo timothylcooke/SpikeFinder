@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace SpikeFinder.RefractiveIndices
 {
-    public class NavarroRefractiveIndices : RefractiveIndexMethod
+    public sealed class NavarroRefractiveIndices : RefractiveIndexMethod
     {
         public static NavarroRefractiveIndices Instance { get; } = new();
 
