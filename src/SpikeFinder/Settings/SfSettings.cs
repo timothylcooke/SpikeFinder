@@ -52,7 +52,19 @@ namespace SpikeFinder.Settings
 
                     var initialJson = File.Exists(filePath) ? File.ReadAllText(filePath) : "{}";
 
-                    instance = JsonConvert.DeserializeObject<T>(initialJson);
+                    try
+                    {
+                        instance = JsonConvert.DeserializeObject<T>(initialJson);
+                    }
+                    catch
+                    {
+                        instance = null;
+                    }
+
+                    if (instance == null)
+                    {
+                        instance = JsonConvert.DeserializeObject<T>("{}");
+                    }
 
                     var instanceRef = instance;
 
