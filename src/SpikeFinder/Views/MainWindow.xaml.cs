@@ -161,7 +161,7 @@ namespace SpikeFinder.Views
                 }
                 else
                 {
-                    showNotification();
+                    Observable.Start(showNotification, RxApp.MainThreadScheduler).Subscribe();
                 }
             }
             else
