@@ -77,24 +77,25 @@ namespace SpikeFinder.SQLite
             {
                 await sql.ExecuteTransaction(async () =>
                 {
-                    cmd.CommandText = @"CREATE TABLE IF NOT EXISTS Version(Version INT);SELECT Version FROM Version;";
+                    cmd.CommandText = @"CREATE TABLE IF NOT EXISTS Version(Version INT);SELECT MAX(Version) FROM Version;";
 
                     var version = await cmd.ExecuteScalarAsync(token) switch
                     {
                         null => 0,
                         DBNull => 0,
                         int v => v,
+                        long v => (int)v,
                         object x => throw new Exception($"Version is neither an int nor null: {x?.GetType().FullName}")
                     };
 
                     switch (version)
                     {
                         case 0:
-                            await sql.UpgradeToV1(cmd);
-                            version = 1;
+                            await sql.UpgradeFromScratch(cmd);
+                            version = 2;
                             break;
                         case 1:
-                            await sql.UpgradeToV2(cmd);
+                            await sql.UpgradeFromV1(cmd);
                             version = 2;
                             break;
                     }
@@ -107,19 +108,19 @@ namespace SpikeFinder.SQLite
 
             return sql;
         }
-        private async Task UpgradeToV1(SQLiteCommand cmd)
+        private async Task UpgradeFromScratch(SQLiteCommand cmd)
         {
             cmd.CommandText = "DELETE FROM Version;";
             await cmd.ExecuteNonQueryAsync();
 
             cmd.CommandText = @"
-CREATE TABLE Spikes(ExamKey CHAR(40) PRIMARY KEY, PosteriorCornea INT, AnteriorLens INT, PosteriorLens INT, ILM INT, RPE INT, Notes TEXT);
-INSERT INTO Version VALUES(1);
+CREATE TABLE Spikes(ExamKey CHAR(40) PRIMARY KEY, PosteriorCornea INT, AnteriorLens INT, PosteriorLens INT, ILM INT, RPE INT, Notes TEXT, MeasureMode INT);
+INSERT INTO Version VALUES(2);
 ";
             if (await cmd.ExecuteNonQueryAsync() != 1)
                 throw new Exception("Failed to upgrade database to v1");
         }
-        private async Task UpgradeToV2(SQLiteCommand cmd)
+        private async Task UpgradeFromV1(SQLiteCommand cmd)
         {
             cmd.CommandText = "DELETE FROM Version;";
             await cmd.ExecuteNonQueryAsync();
