@@ -207,6 +207,13 @@ namespace SpikeFinder.Controls
         }
         public static readonly DependencyProperty MaxValueProperty = DependencyProperty.Register(nameof(MaxValue), typeof(double), typeof(SpikesControl), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
 
+        public MeasureMode MeasureMode
+        {
+            get => (MeasureMode)GetValue(MeasureModeProperty);
+            set => SetValue(MeasureModeProperty, value);
+        }
+        public static readonly DependencyProperty MeasureModeProperty = DependencyProperty.Register(nameof(MeasureMode), typeof(MeasureMode), typeof(SpikesControl), new FrameworkPropertyMetadata(MeasureMode.PHAKIC, FrameworkPropertyMetadataOptions.AffectsRender));
+
         public double Wavelength
         {
             get => (double)GetValue(WavelengthProperty);
@@ -473,7 +480,7 @@ namespace SpikeFinder.Controls
                                 }
 
                                 var opl = Math.Abs(dimen.otherEndPosition - c.X!.Value) / 1250.0;
-                                var ri = LenstarRefractiveIndices.Instance.RefractiveIndex(dimen.dimension, Wavelength);
+                                var ri = RefractiveIndexMethod.Current.RefractiveIndex(dimen.dimension, MeasureMode, Wavelength);
 
                                 var line1 = new FormattedText($"OPL = {opl:F3} mm", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
                                 var line2 = new FormattedText($"RI = {ri:F3}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);

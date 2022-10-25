@@ -1,0 +1,117 @@
+﻿<rxui:ReactiveUserControl x:TypeArguments="viewModels:SettingsViewModel"
+                          x:Class="SpikeFinder.Views.SettingsView"
+                          xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                          xmlns:rxui="http://reactiveui.net"
+                          xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                          xmlns:viewModels="clr-namespace:SpikeFinder.ViewModels"
+                          mc:Ignorable="d"
+                          d:DataContext="{d:DesignInstance viewModels:SettingsViewModel}"
+                          d:DesignHeight="450" d:DesignWidth="800"
+                          DataContext="{Binding ViewModel, RelativeSource={RelativeSource Self}}"
+                          Padding="20">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <ListBox HorizontalContentAlignment="Center" ItemsSource="{Binding SettingsPages}" Padding="0" SelectedValue="{Binding CurrentPage}" SelectionMode="Single" SelectedValuePath="Page">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="0,5,5,5">
+                        <Border>
+                            <Viewbox Width="48" Height="48" HorizontalAlignment="Center" Margin="0,0,0,5">
+                                <Path Data="{Binding Icon}" Fill="{Binding Foreground, ElementName=TextBlock}" />
+                            </Viewbox>
+                        </Border>
+                        <TextBlock Text="{Binding Description}" TextAlignment="Center" x:Name="TextBlock" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Grid Grid.Column="2" Visibility="{Binding CurrentPage, ConverterParameter='$`{x}` == `Database` ? `Visible` : `Collapsed`', Converter={StaticResource Math}}" x:Name="DatabaseSettings" FocusManager.IsFocusScope="True" FocusManager.FocusedElement="{Binding ElementName=DbPathTextBox}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Label Content="Sqlite Database Path" />
+            <DockPanel Grid.Row="1">
+                <Button Content="_Browse" MinWidth="75" DockPanel.Dock="Right" HorizontalAlignment="Right" TabIndex="1" Command="{Binding BrowseSqliteDatabasePathCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" />
+                <TextBox Text="{Binding SqliteDatabasePath, UpdateSourceTrigger=PropertyChanged}" TabIndex="0" x:Name="DbPathTextBox" Margin="0,0,20,0" />
+            </DockPanel>
+
+            <Label Grid.Row="3" Content="MySQL Connection String" />
+            <CheckBox Grid.Row="4" IsChecked="{Binding HideConnectionString}" Content="_Hide Connection String" HorizontalAlignment="Left" TabIndex="2" />
+            <TextBox Grid.Row="5" Text="{Binding ConnectionString, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding ConnectionStringVisibility}" Margin="0,8,0,0" TabIndex="3" />
+        </Grid>
+
+        <Grid Grid.Column="2" x:Name="RefractiveIndicesSettings" Visibility="{Binding CurrentPage, ConverterParameter='$`{x}` == `RefractiveIndices` ? `Visible` : `Collapsed`', Converter={StaticResource Math}}" FocusManager.IsFocusScope="True" FocusManager.FocusedElement="{Binding ElementName=RefractiveIndexMethod}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.ColumnSpan="3" Target="{Binding ElementName=RefractiveIndexMethod}" Content="Refractive _Index Method" />
+            <ComboBox x:Name="RefractiveIndexMethod" Grid.Row="1" Grid.ColumnSpan="3" ItemsSource="{Binding RefractiveIndexMethods}" SelectedValue="{Binding RefractiveIndexMethod}" SelectedValuePath="Method" DisplayMemberPath="Description" />
+            <TextBlock Grid.Row="3" Grid.ColumnSpan="3" TextWrapping="Wrap">
+                <Run FontWeight="Bold">Special Refractive Indices:</Run>
+                You can specify custom refractive indices for various materials. Default values (as defined by EyeSuite) are constants, but you can use 'x', which represents the wavelength, in nanometers.
+                For example, an equation of "x/529" would yield a refractive index of approximately 1.5501 if λ = 820 nm.
+            </TextBlock>
+
+            <StackPanel Grid.Row="5">
+                <Label Content="Pseudophakic lens RI (unspecified material)" />
+                <TextBox Text="{Binding PseudophakicDefaultRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="5" Grid.Column="2">
+                <Label Content="Pseudophakic lens RI (acryllic)" />
+                <TextBox Text="{Binding PseudophakicAcrylicRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="7">
+                <Label Content="Pseudophakic lens RI (PMMA)" />
+                <TextBox Text="{Binding PseudophakicPMMARefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="7" Grid.Column="2">
+                <Label Content="Pseudophakic lens RI (silicone)" />
+                <TextBox Text="{Binding PseudophakicSiliconeRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="9">
+                <Label Content="Retina" />
+                <TextBox Text="{Binding RetinaRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="9" Grid.Column="2">
+                <Label Content="Silicone Oil" />
+                <TextBox Text="{Binding SiliconeOilRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</rxui:ReactiveUserControl>

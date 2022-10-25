@@ -2,12 +2,17 @@
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Models;
+using SpikeFinder.RefractiveIndices;
+using SpikeFinder.Settings;
 using SpikeFinder.SQLite;
+using Syncfusion.Data.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive.Linq;
+
+using static SpikeFinder.Models.LensMaterial;
 
 namespace SpikeFinder.ViewModels
 {
@@ -44,6 +49,27 @@ namespace SpikeFinder.ViewModels
             Exams = filteredExams;
 
             sourceCache.AddOrUpdate(exams);
+
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.RefractiveIndexMethod).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes))
+                .Subscribe(x => x.ForEach(y => y.OnRefractiveIndexMethodChanged())));
+
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.PseudophakicDefaultRefractiveIndex, x => x.PseudophakicAcrylicRefractiveIndex, x => x.PseudophakicPMMARefractiveIndex, x => x.PseudophakicSiliconeRefractiveIndex).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes && x.MeasureMode is { } mm &&
+                    RefractiveIndexMethod.GetLensMaterial(mm) is PseudophakicAcrylic or PseudophakicDefault or PseudophakicPMMA or PseudophakicSilicone))
+                .Subscribe(x => x.ForEach(y => y.OnLensRefractiveIndexChanged())));
+
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.SiliconeOilRefractiveIndex).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes && x.MeasureMode is { } mm && RefractiveIndexMethod.GetVitreousMaterial(mm) is VitreousMaterial.SiliconeOil))
+                .Subscribe(x => x.ForEach(y => y.OnVitreousRefractiveIndexChanged())));
+
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.RetinaRefractiveIndex).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes))
+                .Subscribe(x => x.ForEach(y => y.OnRetinaRefractiveIndexChanged())));
 
             d(sourceCache);
         }

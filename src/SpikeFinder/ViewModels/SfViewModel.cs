@@ -20,7 +20,7 @@ namespace SpikeFinder.ViewModels
             return new CompositeDisposable()
             {
                 { SettingsCommand = ReactiveCommand.Create(() => { }) },
-                { SettingsCommand.Select(_ => new DatabaseSettingsViewModel() as IRoutableViewModel).InvokeCommand(HostScreen.Router.Navigate) }
+                { SettingsCommand.Select(_ => new SettingsViewModel() as IRoutableViewModel).InvokeCommand(HostScreen.Router.Navigate) }
             };
         }
 

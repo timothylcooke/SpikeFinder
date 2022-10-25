@@ -37,7 +37,7 @@ namespace SpikeFinder.ViewModels
             UrlPathSegment = $"/Spikes/{exam.Key}";
             Title = $"{exam.FirstName} {exam.LastName} (DOB {exam.DOB:d}; #{exam.PatientNumber}) {exam.Eye} measurement {exam.Timestamp:d}";
 
-            MeasureModes = LenstarExam.MeasureModesWithDescription.Select(x => new { Value = x.Key, Description = x.Value }).ToArray();
+            MeasureModes = LenstarExam.GetMeasureModesWithDescription().Select(x => new { Value = x.Key, Description = x.Value }).ToArray();
 
             Exam = exam;
             Spikes = spikes;

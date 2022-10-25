@@ -62,7 +62,7 @@ namespace SpikeFinder.Views
                     isValidSettings = true;
                 }
 
-                IRoutableViewModel firstViewModel = isValidSettings ? new LoadGridViewModel() : new DatabaseSettingsViewModel();
+                IRoutableViewModel firstViewModel = isValidSettings ? new LoadGridViewModel() : new SettingsViewModel();
 
                 d(Observable.Return(firstViewModel).InvokeCommand(ViewModel.HostScreen.Router.Navigate));
             });
