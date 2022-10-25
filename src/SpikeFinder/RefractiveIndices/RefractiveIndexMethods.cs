@@ -7,5 +7,6 @@ namespace SpikeFinder.RefractiveIndices
         Argos,
         [Description("Cornu Le Grand")] CornuLeGrand,
         Lenstar,
+        Navarro,
     }
 }

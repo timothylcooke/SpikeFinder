@@ -20,6 +20,7 @@ namespace SpikeFinder.RefractiveIndices
             RefractiveIndexMethods.Lenstar => LenstarRefractiveIndices.Instance,
             RefractiveIndexMethods.Argos => ArgosRefractiveIndices.Instance,
             RefractiveIndexMethods.CornuLeGrand => CornuLeGrandRefractiveIndices.Instance,
+            RefractiveIndexMethods.Navarro => NavarroRefractiveIndices.Instance,
             _ => throw new InvalidEnumArgumentException()
         };
 
