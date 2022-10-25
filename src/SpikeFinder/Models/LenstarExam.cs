@@ -106,7 +106,7 @@ namespace SpikeFinder.Models
             {
                 if (PersistedSpikes != null && Wavelength != null && MeasureMode is { } mm)
                 {
-                    return (PersistedSpikes.RPE - PersistedSpikes.ILM) / 1250.0 / RefractiveIndexMethod.Current.Retina(Wavelength.Value);
+                    return (PersistedSpikes.RPE - PersistedSpikes.ILM) / 1250.0 / RefractiveIndexMethod.Current.RefractiveIndex(Dimension.RT, mm, Wavelength.Value);
                 }
 
                 return null;

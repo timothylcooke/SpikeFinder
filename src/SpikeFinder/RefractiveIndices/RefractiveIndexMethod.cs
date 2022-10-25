@@ -36,14 +36,13 @@ namespace SpikeFinder.RefractiveIndices
         }
 
 
-        private MemoizingMRUCache<double, double> _cornea, _aqueous, _lens, _vitreous, _retina, _axialLength;
+        private MemoizingMRUCache<double, double> _cornea, _aqueous, _lens, _vitreous, _axialLength;
         protected RefractiveIndexMethod()
         {
             _cornea = new MemoizingMRUCache<double, double>((wavelength, _) => ComputeCornea(wavelength), 20);
             _aqueous = new MemoizingMRUCache<double, double>((wavelength, _) => ComputeAqueous(wavelength), 20);
             _lens = new MemoizingMRUCache<double, double>((wavelength, _) => ComputeLens(wavelength), 20);
             _vitreous = new MemoizingMRUCache<double, double>((wavelength, _) => ComputeVitreous(wavelength), 20);
-            _retina = new MemoizingMRUCache<double, double>((wavelength, _) => ComputeRetina(wavelength), 20);
             _axialLength = new MemoizingMRUCache<double, double>((wavelength, measureMode) => ComputeAxialLength(wavelength, (MeasureMode)measureMode!), 20);
         }
 
@@ -51,7 +50,6 @@ namespace SpikeFinder.RefractiveIndices
         public double Aqueous(double wavelength) => _aqueous.Get(wavelength);
         public double Lens(double wavelength) => _lens.Get(wavelength);
         public double Vitreous(double wavelength) => _vitreous.Get(wavelength);
-        public double Retina(double wavelength) => _retina.Get(wavelength);
         public double AxialLength(double wavelength, MeasureMode measureMode) => _axialLength.Get(wavelength, measureMode);
 
         public double RefractiveIndex(Dimension dimension, MeasureMode measureMode, double wavelength)
@@ -72,7 +70,6 @@ namespace SpikeFinder.RefractiveIndices
         protected abstract double ComputeAqueous(double wavelength);
         protected abstract double ComputeLens(double wavelength);
         protected abstract double ComputeVitreous(double wavelength);
-        protected abstract double ComputeRetina(double wavelength);
         public double ComputeAxialLength(double wavelength, MeasureMode measureMode)
         {
             var lensMaterial = _lensMaterials[measureMode];
@@ -110,7 +107,7 @@ namespace SpikeFinder.RefractiveIndices
                  + Aqueous(wavelength) * idealAqueous
                  + SfMachineSettings.Instance.GetLensRefractiveIndex(lensMaterial, wavelength, this) * idealLens
                  + SfMachineSettings.Instance.GetVitreousRefractiveIndex(vitreousMaterial, wavelength, this) * idealVitBody
-                 + Retina(wavelength) * idealRetina) / (idealEyeLeng + idealRetina);
+                 + RefractiveIndex(Dimension.RT, measureMode, wavelength) * idealRetina) / (idealEyeLeng + idealRetina);
         }
     }
 }
