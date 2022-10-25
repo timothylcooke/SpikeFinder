@@ -1,8 +1,11 @@
-﻿namespace SpikeFinder.RefractiveIndices
+﻿using System.ComponentModel;
+
+namespace SpikeFinder.RefractiveIndices
 {
     public enum RefractiveIndexMethods
     {
         Argos,
-        Lenstar
+        [Description("Cornu Le Grand")] CornuLeGrand,
+        Lenstar,
     }
 }
