@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Linq;
 
 using static SpikeFinder.Models.LensMaterial;
+using static SpikeFinder.RefractiveIndices.RefractiveIndexMethods;
 
 namespace SpikeFinder.RefractiveIndices
 {
@@ -17,14 +18,14 @@ namespace SpikeFinder.RefractiveIndices
         public static RefractiveIndexMethod Current => GetRefractiveIndexMethod(SfMachineSettings.Instance.RefractiveIndexMethod);
         public static RefractiveIndexMethod GetRefractiveIndexMethod(RefractiveIndexMethods method) => method switch
         {
-            RefractiveIndexMethods.Argos => ArgosRefractiveIndices.Instance,
-            RefractiveIndexMethods.CornuLeGrand => CornuLeGrandRefractiveIndices.Instance,
-            RefractiveIndexMethods.DMGullstrand555 => DMGullstrand555RefractiveIndices.Instance,
-            RefractiveIndexMethods.DMGullstrand589 => DMGullstrand589RefractiveIndices.Instance,
-            RefractiveIndexMethods.DMLeGrand555 => DMLeGrand555RefractiveIndices.Instance,
-            RefractiveIndexMethods.DMLeGrand589 => DMLeGrand589RefractiveIndices.Instance,
-            RefractiveIndexMethods.Lenstar => LenstarRefractiveIndices.Instance,
-            RefractiveIndexMethods.Navarro => NavarroRefractiveIndices.Instance,
+            Argos => ArgosRefractiveIndices.Instance,
+            CornuLeGrand => CornuLeGrandRefractiveIndices.Instance,
+            DMGullstrand555 => DMGullstrand555RefractiveIndices.Instance,
+            DMGullstrand589 => DMGullstrand589RefractiveIndices.Instance,
+            DMLeGrand555 => DMLeGrand555RefractiveIndices.Instance,
+            DMLeGrand589 => DMLeGrand589RefractiveIndices.Instance,
+            Lenstar => LenstarRefractiveIndices.Instance,
+            Navarro => NavarroRefractiveIndices.Instance,
             _ => throw new InvalidEnumArgumentException()
         };
 
