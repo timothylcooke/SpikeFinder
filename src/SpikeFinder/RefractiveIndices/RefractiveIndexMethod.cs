@@ -18,6 +18,12 @@ namespace SpikeFinder.RefractiveIndices
         public static RefractiveIndexMethod Current => GetRefractiveIndexMethod(SfMachineSettings.Instance.RefractiveIndexMethod);
         public static RefractiveIndexMethod GetRefractiveIndexMethod(RefractiveIndexMethods method) => method switch
         {
+            ASCauchyHighLens => ASCauchyHighLensRefractiveIndices.Instance,
+            ASCauchyLowLens => ASCauchyLowLensRefractiveIndices.Instance,
+            ASGullstrand555 => ASGullstrand555RefractiveIndices.Instance,
+            ASGullstrand589 => ASGullstrand589RefractiveIndices.Instance,
+            ASLeGrand555 => ASLeGrand555RefractiveIndices.Instance,
+            ASLeGrand589 => ASLeGrand589RefractiveIndices.Instance,
             Argos => ArgosRefractiveIndices.Instance,
             CornuLeGrand => CornuLeGrandRefractiveIndices.Instance,
             DMGullstrand555 => DMGullstrand555RefractiveIndices.Instance,
