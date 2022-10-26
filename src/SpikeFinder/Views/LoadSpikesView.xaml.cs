@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using SpikeFinder.Extensions;
+﻿using SpikeFinder.Extensions;
 
 namespace SpikeFinder.Views
 {

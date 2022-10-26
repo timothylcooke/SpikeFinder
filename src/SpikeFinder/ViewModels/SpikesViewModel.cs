@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using ReactiveUI;
+﻿using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Models;
 using SpikeFinder.SQLite;

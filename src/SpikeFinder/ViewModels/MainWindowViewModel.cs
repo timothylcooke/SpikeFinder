@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using DynamicData;
+﻿using DynamicData;
 using MahApps.Metro.Controls;
 using MahApps.Metro.SimpleChildWindow;
 using ReactiveUI;

@@ -1,5 +1,4 @@
-﻿#nullable enable
-using ReactiveUI;
+﻿using ReactiveUI;
 using SpikeFinder.Extensions;
 using System;
 using System.Reactive.Linq;

@@ -1,10 +1,8 @@
-﻿#nullable enable
-using ReactiveUI;
+﻿using ReactiveUI;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
 using SpikeFinder.Settings;
 using SpikeFinder.ViewModels;
-using Syncfusion.UI.Xaml.Grid;
 using Syncfusion.UI.Xaml.Grid.Helpers;
 using System;
 using System.Collections;

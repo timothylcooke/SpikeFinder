@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace SpikeFinder.RefractiveIndices
+﻿namespace SpikeFinder.RefractiveIndices
 {
     public sealed class LiouBrennanRefractiveIndices : RefractiveIndexMethod
     {

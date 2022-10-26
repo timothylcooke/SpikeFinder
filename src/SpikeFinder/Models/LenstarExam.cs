@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using FuzzySharp;
+﻿using FuzzySharp;
 using SpikeFinder.Extensions;
 using SpikeFinder.RefractiveIndices;
 using SpikeFinder.Settings;

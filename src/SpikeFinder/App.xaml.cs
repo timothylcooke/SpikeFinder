@@ -1,11 +1,8 @@
-﻿#nullable enable
-
-using ControlzEx.Theming;
+﻿using ControlzEx.Theming;
 using ReactiveUI;
 using SpikeFinder.Views;
 using Splat;
 using System;
-using System.IO;
 using System.Reactive;
 using System.Windows;
 

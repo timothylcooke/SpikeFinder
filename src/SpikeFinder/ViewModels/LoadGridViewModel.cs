@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using DynamicData;
+﻿using DynamicData;
 using DynamicData.Binding;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;

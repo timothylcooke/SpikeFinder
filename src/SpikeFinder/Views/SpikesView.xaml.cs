@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using ReactiveUI;
+﻿using ReactiveUI;
 using System;
 
 namespace SpikeFinder.Views

@@ -1,12 +1,9 @@
-﻿#nullable enable
-
-using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+﻿using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 using MySql.Data.MySqlClient;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
-using SpikeFinder.Toast;
 using Syncfusion.Data.Extensions;
 using System;
 using System.Buffers.Binary;
