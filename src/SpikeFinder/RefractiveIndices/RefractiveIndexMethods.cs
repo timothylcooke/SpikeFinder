@@ -17,6 +17,7 @@ namespace SpikeFinder.RefractiveIndices
         [Description("D&M Le Grand (555)")] DMLeGrand555,
         [Description("D&M Le Grand (589)")] DMLeGrand589,
         Lenstar,
+        [Description("Liou & Brennan")] LiouBrennan,
         Navarro,
     }
 }

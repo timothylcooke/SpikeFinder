@@ -31,6 +31,7 @@ namespace SpikeFinder.RefractiveIndices
             DMLeGrand555 => DMLeGrand555RefractiveIndices.Instance,
             DMLeGrand589 => DMLeGrand589RefractiveIndices.Instance,
             Lenstar => LenstarRefractiveIndices.Instance,
+            LiouBrennan => LiouBrennanRefractiveIndices.Instance,
             Navarro => NavarroRefractiveIndices.Instance,
             _ => throw new InvalidEnumArgumentException()
         };
