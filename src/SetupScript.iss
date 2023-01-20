@@ -37,8 +37,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "SpikeFinder\bin\Publish\net6.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x86
 Source: "SpikeFinder\bin\Publish\netcorecheck.exe"; Flags: dontcopy noencryption
+; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x64
 Source: "SpikeFinder\bin\Publish\netcorecheck_x64.exe"; Flags: dontcopy noencryption
+
+
 
 [Dirs]
 Name: "{commonappdata}\SpikeFinder"; Flags: uninsneveruninstall; Permissions: users-modify
@@ -102,8 +106,6 @@ function Dependency_IsNetCoreInstalled(const Version: String): Boolean;
 var
   ResultCode: Integer;
 begin
-  // https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x64
-  // https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x86
   if not FileExists(ExpandConstant('{tmp}{\}') + 'netcorecheck' + Dependency_ArchSuffix + '.exe') then begin
     ExtractTemporaryFile('netcorecheck' + Dependency_ArchSuffix + '.exe');
   end;
