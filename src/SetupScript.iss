@@ -4,7 +4,7 @@
 #define MyAppPublisher "Tim Cooke"
 #define MyAppURL "https://github.com/timothylcooke/SpikeFinder"
 #define MyAppExeName "SpikeFinder.exe"
-#define MyAppVersion GetVersionNumbersString('SpikeFinder\bin\Publish\net6.0-windows\' + MyAppExeName)
+#define MyAppVersion GetVersionNumbersString('SpikeFinder\bin\Publish\net6.0-windows10.0.17763\' + MyAppExeName)
 
 
 ; To make signing the (setup) SpikeFinder.exe, you must use Inno Setup Compiler, and choose "Tools/Configure Sign Tools" from the file menu.
@@ -36,7 +36,7 @@ VersionInfoVersion={#MyAppVersion}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "SpikeFinder\bin\Publish\net6.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "SpikeFinder\bin\Publish\net6.0-windows10.0.17763\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x86
 Source: "SpikeFinder\bin\Publish\netcorecheck.exe"; Flags: dontcopy noencryption
 ; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x64
