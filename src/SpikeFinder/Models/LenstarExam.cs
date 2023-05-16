@@ -172,5 +172,10 @@ namespace SpikeFinder.Models
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderRT)));
         }
+
+        public override int GetHashCode()
+        {
+            return Key.GetHashCode();
+        }
     }
 }

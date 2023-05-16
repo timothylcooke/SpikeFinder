@@ -28,7 +28,6 @@ namespace SpikeFinder.Views
             {
                 SearchBox.Focus();
 
-
                 d(Observable.FromEventPattern<KeyEventHandler, KeyEventArgs>(x => SearchBox.PreviewKeyDown += x, x => SearchBox.PreviewKeyDown -= x)
                     .Select(x => x.EventArgs)
                     .Where(x => Keyboard.Modifiers == ModifierKeys.None && x.Key == Key.Down)
@@ -42,7 +41,7 @@ namespace SpikeFinder.Views
                 var gridKeyDown = Grid.WhenPreviewKeyDown().Publish().RefCount();
 
                 d(gridKeyDown
-                    .Where(x => Keyboard.Modifiers == ModifierKeys.None && x.Key == Key.Up && Grid.SelectedItems.Count == 1 && Grid.SelectedItems[0] == Grid.GetRecordAtRowIndex(Grid.GetFirstRowIndex()))
+                    .Where(x => Keyboard.Modifiers == ModifierKeys.None && x.Key == Key.Up && Grid.SelectedIndex == 0)
                     .Do(x => x.Handled = true)
                     .Do(_ => SearchBox.Focus())
                     .Subscribe());
