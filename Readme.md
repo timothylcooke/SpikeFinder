@@ -12,7 +12,7 @@ Download the installer on [the releases page](https://github.com/timothylcooke/S
 
 Feel free to create an issue [on the issues page](https://github.com/timothylcooke/SpikeFinder/issues) if you find a bug, or if you would like a new feature added.
 
-You can also email <tcooke@greateyecare.com>, or contact me at [+1-269-313-7576](tel:+12693137576) via SMS (US/Canadian numbers only), WhatsApp, or Signal.
+You can also email <tcooke@greateyecare.com> for support.
 
 ## Thanks!
 
