@@ -1,11 +1,15 @@
-; Before compiling this script, do a PUBLISH (not just release) build. Use the existing publish profile.
+; Before compiling this script, do a PUBLISH (not just release) build. Use both existing publish profiles to build both x64 and x86.
 
 #define MyAppName "SpikeFinder"
 #define MyAppPublisher "Tim Cooke"
 #define MyAppURL "https://github.com/timothylcooke/SpikeFinder"
 #define MyAppExeName "SpikeFinder.exe"
-#define MyAppVersion GetVersionNumbersString('SpikeFinder\bin\Publish\net6.0-windows10.0.17763\' + MyAppExeName)
+#define PublishDir "SpikeFinder\bin\Publish\net6.0-windows10.0.17763\"
+#define MyAppVersion GetVersionNumbersString(PublishDir + 'win-x86\' + MyAppExeName)
 
+#if MyAppVersion != GetVersionNumbersString(PublishDir + 'win-x64\' + MyAppExeName)
+    #error Version numbers do not match. Ensure both x86 and x64 executables are built.
+#endif
 
 ; To make signing the (setup) SpikeFinder.exe, you must use Inno Setup Compiler, and choose "Tools/Configure Sign Tools" from the file menu.
 ; Add an option with the name of "signtool" and a value of the following:
@@ -28,7 +32,7 @@ OutputBaseFilename=SpikeFinderSetup-{#MyAppVersion}
 Compression=lzma/ultra64
 SolidCompression=yes
 OutputDir=SpikeFinder\bin\Setup
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
 VersionInfoVersion={#MyAppVersion}
 ; SignTool=signtool
 
@@ -36,13 +40,12 @@ VersionInfoVersion={#MyAppVersion}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "SpikeFinder\bin\Publish\net6.0-windows10.0.17763\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "SpikeFinder\bin\Publish\net6.0-windows10.0.17763\win-x86\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not Is64BitInstallMode
+Source: "SpikeFinder\bin\Publish\net6.0-windows10.0.17763\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: Is64BitInstallMode
 ; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x86
 Source: "SpikeFinder\bin\Publish\netcorecheck.exe"; Flags: dontcopy noencryption
 ; https://www.nuget.org/packages/Microsoft.NET.Tools.NETCoreCheck.x64
 Source: "SpikeFinder\bin\Publish\netcorecheck_x64.exe"; Flags: dontcopy noencryption
-
-
 
 [Dirs]
 Name: "{commonappdata}\SpikeFinder"; Flags: uninsneveruninstall; Permissions: users-modify
