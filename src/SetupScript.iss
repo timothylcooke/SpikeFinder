@@ -288,11 +288,11 @@ end;
 procedure Dependency_AddDotNet60Desktop;
 begin
   // https://dotnet.microsoft.com/download/dotnet/6.0
-  if not Dependency_IsNetCoreInstalled('Microsoft.WindowsDesktop.App 6.0.14') then begin
+  if not Dependency_IsNetCoreInstalled('Microsoft.WindowsDesktop.App 6.0.31') then begin
     Dependency_Add('dotnet60desktop' + Dependency_ArchSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 6.0.14' + Dependency_ArchTitle,
-      Dependency_String('https://download.visualstudio.microsoft.com/download/pr/e66c97f8-3ca5-4cbc-aaf8-77079b21f41f/3ce8574df28f49d85091b1af758eccb7/windowsdesktop-runtime-6.0.14-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/035efed3-6386-4e1d-bcbc-384a20ebf47e/abfbea2303e0ce9cb15d430314e5858f/windowsdesktop-runtime-6.0.14-win-x64.exe'),
+      '.NET Desktop Runtime 6.0.31' + Dependency_ArchTitle,
+      Dependency_String('https://download.visualstudio.microsoft.com/download/pr/b5fbd3de-7a12-43ba-b460-2f938fd802c3/627f6335ef3ba17bd3ef901c790d7575/windowsdesktop-runtime-6.0.31-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/a1da19dc-d781-4981-84e9-ffa0c05e00e9/46f3cd2015c27a0e93d7c102a711577e/windowsdesktop-runtime-6.0.31-win-x64.exe'),
       '', False, False);
   end;
 end;
