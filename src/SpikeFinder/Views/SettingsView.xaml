@@ -64,57 +64,117 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="20" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="20" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="20" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="20" />
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Label Grid.ColumnSpan="3" Target="{Binding ElementName=RefractiveIndexMethod}" Content="Refractive _Index Method" />
-                <ComboBox x:Name="RefractiveIndexMethod" Grid.Row="1" Grid.ColumnSpan="3" ItemsSource="{Binding RefractiveIndexMethods}" SelectedValue="{Binding RefractiveIndexMethod}" SelectedValuePath="Method" DisplayMemberPath="Description" />
-                <TextBlock Grid.Row="3" Grid.ColumnSpan="3" TextWrapping="Wrap">
-                    <Run FontWeight="Bold">Special Refractive Indices:</Run>
-                    You can specify custom refractive indices for various materials. Default values (as defined by EyeSuite) are constants, but you can use 'x', which represents the wavelength, in nanometers.
-                    For example, an equation of "x/529" would yield a refractive index of approximately 1.5501 if λ = 820 nm.
-                </TextBlock>
+                <Label Target="{Binding ElementName=RefractiveIndexMethod}" Content="Refractive _Index Method" />
+                <ComboBox x:Name="RefractiveIndexMethod" Grid.Row="1" ItemsSource="{Binding RefractiveIndexMethods}" SelectedValue="{Binding RefractiveIndexMethod}" SelectedValuePath="Method" DisplayMemberPath="Description" />
 
-                <StackPanel Grid.Row="5">
-                    <Label Content="Pseudophakic lens RI (unspecified material)" />
-                    <TextBox Text="{Binding PseudophakicDefaultRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                <Grid Grid.Row="3" Visibility="{Binding RefractiveIndexMethod, ConverterParameter='$`{x}` == `Air` ? `Collapsed` : `Visible`', Converter={StaticResource Math}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="5" Grid.Column="2">
-                    <Label Content="Pseudophakic lens RI (acryllic)" />
-                    <TextBox Text="{Binding PseudophakicAcrylicRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" TextWrapping="Wrap">
+                        <Run FontWeight="Bold">Special Refractive Indices:</Run>
+                        You can specify custom refractive indices for various materials. Default values (as defined by EyeSuite) are constants, but you can use 'x', which represents the wavelength, in nanometers.
+                        For example, an equation of "x/529" would yield a refractive index of approximately 1.5501 if λ = 820 nm.
+                    </TextBlock>
 
-                <StackPanel Grid.Row="7">
-                    <Label Content="Pseudophakic lens RI (PMMA)" />
-                    <TextBox Text="{Binding PseudophakicPMMARefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <StackPanel Grid.Row="2">
+                        <Label Content="Pseudophakic lens RI (unspecified material)" />
+                        <TextBox Text="{Binding PseudophakicDefaultRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="2">
-                    <Label Content="Pseudophakic lens RI (silicone)" />
-                    <TextBox Text="{Binding PseudophakicSiliconeRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="2">
+                        <Label Content="Pseudophakic lens RI (acryllic)" />
+                        <TextBox Text="{Binding PseudophakicAcrylicRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
 
-                <StackPanel Grid.Row="9">
-                    <Label Content="Retina" />
-                    <TextBox Text="{Binding RetinaRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <StackPanel Grid.Row="4">
+                        <Label Content="Pseudophakic lens RI (PMMA)" />
+                        <TextBox Text="{Binding PseudophakicPMMARefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
 
-                <StackPanel Grid.Row="9" Grid.Column="2">
-                    <Label Content="Silicone Oil" />
-                    <TextBox Text="{Binding SiliconeOilRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <StackPanel Grid.Row="4" Grid.Column="2">
+                        <Label Content="Pseudophakic lens RI (silicone)" />
+                        <TextBox Text="{Binding PseudophakicSiliconeRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6">
+                        <Label Content="Retina" />
+                        <TextBox Text="{Binding RetinaRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Grid.Column="2">
+                        <Label Content="Silicone Oil" />
+                        <TextBox Text="{Binding SiliconeOilRefractiveIndex, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.Row="3" Visibility="{Binding RefractiveIndexMethod, ConverterParameter='$`{x}` == `Air` ? `Visible` : `Collapsed`', Converter={StaticResource Math}}" IsEnabled="False">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" TextWrapping="Wrap">
+                        <Run FontWeight="Bold">Air Thicknesses:</Run>
+                        With any other refractive index method, Lenstar segment lengths use the Lenstar refractive indices. Only SpikeFinder values are scaled according to the refractive index method specified above.
+                        However, when you choose "Air" refractive indices, all segment lengths (both Lenstar <Run FontStyle="Italic">and</Run> SpikeFinder segment lengths) will remain unscaled.
+                    </TextBlock>
+
+                    <StackPanel Grid.Row="2">
+                        <Label Content="Pseudophakic lens RI (unspecified material)" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="2">
+                        <Label Content="Pseudophakic lens RI (acryllic)" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4">
+                        <Label Content="Pseudophakic lens RI (PMMA)" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Grid.Column="2">
+                        <Label Content="Pseudophakic lens RI (silicone)" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6">
+                        <Label Content="Retina" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Grid.Column="2">
+                        <Label Content="Silicone Oil" />
+                        <TextBox Text="1.0" />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </ScrollViewer>
     </Grid>

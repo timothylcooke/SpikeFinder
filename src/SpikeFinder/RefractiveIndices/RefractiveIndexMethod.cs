@@ -33,6 +33,7 @@ namespace SpikeFinder.RefractiveIndices
             Lenstar => LenstarRefractiveIndices.Instance,
             LiouBrennan => LiouBrennanRefractiveIndices.Instance,
             Navarro => NavarroRefractiveIndices.Instance,
+            Air => AirRefractiveIndices.Instance,
             _ => throw new InvalidEnumArgumentException()
         };
 
@@ -74,7 +75,7 @@ namespace SpikeFinder.RefractiveIndices
                 Dimension.AD => Aqueous(wavelength),
                 Dimension.LT => SfMachineSettings.Instance.GetLensRefractiveIndex(_lensMaterials[measureMode], wavelength, this),
                 Dimension.VD => SfMachineSettings.Instance.GetVitreousRefractiveIndex(_vitreousMaterials[measureMode], wavelength, this),
-                Dimension.RT => CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.RetinaRefractiveIndex).ComputeRefractiveIndex(wavelength),
+                Dimension.RT => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.RetinaRefractiveIndex).ComputeRefractiveIndex(wavelength),
                 Dimension.AL => AxialLength(wavelength, measureMode),
                 _ => 0
             };

@@ -116,7 +116,7 @@ namespace SpikeFinder.Settings
         [Reactive, DataMember] public string SiliconeOilRefractiveIndex { get; set; } = "1.406";
 
         public double GetLensRefractiveIndex(MeasureMode measureMode, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => GetLensRefractiveIndex(RefractiveIndices.RefractiveIndexMethod.GetLensMaterial(measureMode), wavelength, refractiveIndexMethod);
-        public double GetLensRefractiveIndex(LensMaterial material, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => ((Func<double, double>)(
+        public double GetLensRefractiveIndex(LensMaterial material, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => RefractiveIndexMethod == RefractiveIndexMethods.Air ? 1 : ((Func<double, double>)(
             material switch
             {
                 LensMaterial.PseudophakicDefault => CustomRefractiveIndex.FromEquation(PseudophakicDefaultRefractiveIndex).ComputeRefractiveIndex,
@@ -126,7 +126,7 @@ namespace SpikeFinder.Settings
                 _ => (refractiveIndexMethod ?? RefractiveIndices.RefractiveIndexMethod.Current).Lens
             }))(wavelength);
         public double GetVitreousRefractiveIndex(MeasureMode measureMode, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => GetVitreousRefractiveIndex(RefractiveIndices.RefractiveIndexMethod.GetVitreousMaterial(measureMode), wavelength, refractiveIndexMethod);
-        public double GetVitreousRefractiveIndex(VitreousMaterial material, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => ((Func<double, double>)(
+        public double GetVitreousRefractiveIndex(VitreousMaterial material, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => RefractiveIndexMethod == RefractiveIndexMethods.Air ? 1 : ((Func<double, double>)(
             material switch
             {
                 VitreousMaterial.SiliconeOil => CustomRefractiveIndex.FromEquation(SiliconeOilRefractiveIndex).ComputeRefractiveIndex,

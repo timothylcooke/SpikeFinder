@@ -19,5 +19,6 @@ namespace SpikeFinder.RefractiveIndices
         Lenstar,
         [Description("Liou & Brennan")] LiouBrennan,
         Navarro,
+        Air,
     }
 }

@@ -4,6 +4,8 @@ using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
+using SpikeFinder.RefractiveIndices;
+using SpikeFinder.Settings;
 using SpikeFinder.SQLite;
 using System;
 using System.Collections.Generic;
@@ -196,11 +198,16 @@ namespace SpikeFinder.ViewModels
             }
             else
             {
+                var isAirRIs = SfMachineSettings.Instance.RefractiveIndexMethod == RefractiveIndexMethods.Air;
+                var lenstarRIs = RefractiveIndexMethod.GetRefractiveIndexMethod(RefractiveIndexMethods.Lenstar);
+
                 var biometryMeasurements = new Queue<BiometryMeasurements>();
-                return MySqlExtensions.RunSqlQuery(@"SELECT meas.fk_examid, meas.eye, dimen.element, AVG(dimen.dimension * 1000), STDDEV_SAMP(dimen.dimension * 1000)
+                return MySqlExtensions.RunSqlQuery($@"SELECT meas.fk_examid, meas.eye, dimen.element, AVG(dimen.dimension * 1000), STDDEV_SAMP(dimen.dimension * 1000){(isAirRIs ? ", biom.meas_mode, status.sld_wavelength * 1E9" : null)}
 FROM tbl_bio_measurement meas
 JOIN tbl_bio_biometry_dimensions dimen ON meas.pk_measurement = dimen.fk_measurement
-WHERE dimen.used = 1 AND dimen.dimension >= -1
+{(isAirRIs ? @"JOIN tbl_bio_biometry biom ON meas.pk_measurement = biom.fk_measurement
+LEFT JOIN tbl_bio_biometry_setting_status status ON biom.fk_biometry_setting_status = status.pk_biometry_setting_status
+" : null)}WHERE dimen.used = 1 AND dimen.dimension >= -1
 GROUP BY meas.fk_examid, meas.eye, dimen.element
 ORDER BY meas.fk_examid, meas.eye, dimen.element;", async reader =>
                 {
@@ -230,7 +237,18 @@ ORDER BY meas.fk_examid, meas.eye, dimen.element;", async reader =>
                             currentMeasurement = new BiometryMeasurements { ExamId = examId, Eye = eye };
                         }
 
-                        currentMeasurement[(Dimension)reader.GetByte(2)] = ValueWithStandardDeviation.FromValues(reader.GetDouble(3), await reader.IsDBNullAsync(4, token) ? new double?() : reader.GetDouble(4));
+                        var dimension = (Dimension)reader.GetByte(2);
+
+                        if (isAirRIs)
+                        {
+                            var wavelength = reader.GetDouble(6);
+                            var ri = lenstarRIs.RefractiveIndex(dimension, (MeasureMode)reader.GetByte(5), wavelength);
+                            currentMeasurement[dimension] = ValueWithStandardDeviation.FromValues(reader.GetDouble(3) * ri, await reader.IsDBNullAsync(4, token) ? new double?() : reader.GetDouble(4) * ri);
+                        }
+                        else
+                        {
+                            currentMeasurement[dimension] = ValueWithStandardDeviation.FromValues(reader.GetDouble(3), await reader.IsDBNullAsync(4, token) ? new double?() : reader.GetDouble(4));
+                        }
                     }
 
                     AddCurrentMeasurement();

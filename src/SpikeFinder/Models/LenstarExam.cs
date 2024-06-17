@@ -68,6 +68,9 @@ namespace SpikeFinder.Models
                 {
                     var ad = (PersistedSpikes.AnteriorLens - PersistedSpikes.PosteriorCornea) / 1250.0 / RefractiveIndexMethod.Current.Aqueous(Wavelength.Value);
 
+                    if (RefractiveIndexMethod.Current is AirRefractiveIndices)
+                        return ad;
+
                     return ad - 0.1;
                 }
 
@@ -117,6 +120,9 @@ namespace SpikeFinder.Models
                 if (PersistedSpikes != null && Wavelength != null && MeasureMode is { } mm)
                 {
                     var al = (PersistedSpikes.RPE - 1000.0) / 1250.0 / RefractiveIndexMethod.Current.AxialLength(Wavelength.Value, mm);
+
+                    if (SfMachineSettings.Instance.RefractiveIndexMethod is RefractiveIndexMethods.Air)
+                        return al;
 
                     return al - 0.2 + (al - 0.2 - 23.776) * 0.0552 +
                         (
