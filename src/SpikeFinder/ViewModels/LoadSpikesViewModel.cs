@@ -1,5 +1,5 @@
 ﻿using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Extensions;

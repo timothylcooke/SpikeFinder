@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows10.0.17763</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.17763</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
 
@@ -16,7 +16,8 @@
     <PackageReference Include="MahApps.Metro" Version="2.4.10" />
     <PackageReference Include="MahApps.Metro.SimpleChildWindow" Version="2.2.1" />
     <PackageReference Include="MathConverter" Version="2.2.1" />
-    <PackageReference Include="MySql.Data" Version="8.4.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.0" />
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
     <PackageReference Include="ReactiveUI.WPF" Version="20.1.1" />

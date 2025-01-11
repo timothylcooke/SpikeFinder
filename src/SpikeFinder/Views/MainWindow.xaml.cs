@@ -52,7 +52,7 @@ namespace SpikeFinder.Views
 
                 var isValidSettings = SfMachineSettings.Instance is { } settings && settings.SqliteDatabasePath is not null && settings.ConnectionString is not null;
 
-                if (!isValidSettings && MySqlExtensions.ReadConnectionStringFromEyeSuite() is { } connectionString)
+                if (!isValidSettings && Task.Run(async () => await MySqlExtensions.ReadConnectionStringFromEyeSuite()) is { Result: { } connectionString })
                 {
                     SfMachineSettings.Instance.ConnectionString ??= new ProtectedString(connectionString);
                     SfMachineSettings.Instance.SqliteDatabasePath ??= SfSettings.DefaultSqlitePath;

@@ -103,12 +103,12 @@ namespace SpikeFinder.ViewModels
         }
 
         private IObservable<List<LenstarExam>> LoadLenstarExams(IScheduler scheduler) =>
-            Observable.StartAsync(CountExams, scheduler).ObserveOnDispatcher().Do(x => TotalExams = x)
-            .Select(_ =>
+            Observable.StartAsync(GetVersion, scheduler).SelectMany(CountExams).ObserveOn(RxApp.MainThreadScheduler).Do(x => TotalExams = x.totalExams)
+            .Select(x =>
                 Observable.Zip(
                     Observable.StartAsync(token => LoadBiometryMeasurements(_loadBiometryValuesProgress, token), scheduler),
                     Observable.StartAsync(token => LoadMeasureModesAndWavelengths(_loadMeasureModesAndWavelengthsProgress, token), scheduler),
-                    Observable.StartAsync(token => LoadExamDemographics(_loadDemographicsProgress, token), scheduler),
+                    Observable.StartAsync(token => LoadExamDemographics(x.version, _loadDemographicsProgress, token), scheduler),
 
                     Observable.StartAsync(token => LoadKeratometry(_loadK1Progress, KsValue.FlatK, token), scheduler),
                     Observable.StartAsync(token => LoadKeratometry(_loadK2Progress, KsValue.SteepK, token), scheduler),
@@ -178,17 +178,23 @@ namespace SpikeFinder.ViewModels
             return LoadValues(progress, x => x.ExamId, reader => new SingleValueMeasurement(reader.GetInt32(0), (Eye)reader.GetByte(1), ValueWithStandardDeviation.FromValues(reader.GetDouble(2), reader.IsDBNull(3) ? new double?() : reader.GetDouble(3))), query, token);
         }
 
-        private static Task<long> CountExams(CancellationToken token)
+        private static async Task<int> GetVersion(CancellationToken token)
+        {
+            bool hasRows = false;
+
+            return await MySqlExtensions.RunSqlQuery("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tbl_basic_visit';", async reader => hasRows = await reader.ReadAsync(token), () => hasRows, token) ? 1 : 0;
+        }
+        private async static Task<(long totalExams, int version)> CountExams(int version, CancellationToken token)
         {
             long totalExams = 0;
 
-            return MySqlExtensions.RunSqlQuery("SELECT COUNT(*) FROM tbl_basic_patient pat JOIN tbl_basic_examination ex ON pat.pk_patient = ex.fk_patid WHERE ex.category = 1030;", async reader =>
+            return (await MySqlExtensions.RunSqlQuery($"SELECT COUNT(*) FROM tbl_basic_patient pat {(version == 1 ? "JOIN tbl_basic_visit vis ON vis.fk_patient = pat.pk_patient JOIN tbl_basic_examination ex ON vis.pk_visit = ex.fk_visit" : "JOIN tbl_basic_examination ex ON pat.pk_patient = ex.fk_patid")} WHERE ex.category = 1030;", async reader =>
             {
                 if (!await reader.ReadAsync(token))
                     throw new Exception("Failed to count the total exams.");
 
                 totalExams = reader.GetInt64(0);
-            }, () => totalExams, token);
+            }, () => totalExams, token), version);
         }
         private static Task<Queue<BiometryMeasurements>> LoadBiometryMeasurements(LoadingItemViewModel? loadBiometryValues, CancellationToken token)
         {
@@ -266,11 +272,11 @@ WHERE biom.meas_mode IS NOT NULL
 GROUP BY meas.fk_examid, meas.eye
 ORDER BY meas.fk_examid, meas.eye;", token);
         }
-        private static Task<Queue<ExamDemographics>> LoadExamDemographics(LoadingItemViewModel? loadDemographics, CancellationToken token)
+        private static Task<Queue<ExamDemographics>> LoadExamDemographics(int version, LoadingItemViewModel? loadDemographics, CancellationToken token)
         {
-            return LoadValues(loadDemographics, x => x.ExamId, reader => new ExamDemographics(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetDateTime(3), reader.GetDateTime(4), reader.GetGuid(5), reader.GetInt32(6)), @"SELECT patient.patientid, patient.name, patient.firstname, patient.birthdate, exam.timestamp, exam.uuid, exam.pk_examination
+            return LoadValues(loadDemographics, x => x.ExamId, reader => new ExamDemographics(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetDateTime(3), reader.GetDateTime(4), reader.GetGuid(5), reader.GetInt32(6)), $@"SELECT patient.patientid, patient.name, patient.firstname, patient.birthdate, exam.timestamp, exam.uuid, exam.pk_examination
 FROM tbl_basic_patient patient
-JOIN tbl_basic_examination exam ON patient.pk_patient = exam.fk_patid
+{(version == 1 ? "JOIN tbl_basic_visit vis ON vis.fk_patient = patient.pk_patient JOIN tbl_basic_examination exam ON vis.pk_visit = exam.fk_visit" : "JOIN tbl_basic_examination exam ON patient.pk_patient = exam.fk_patid")}
 WHERE exam.category = 1030
 ORDER BY exam.pk_examination;", token);
         }
