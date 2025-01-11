@@ -7,6 +7,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,12 +21,18 @@ namespace SpikeFinder.SQLite
         public static async Task SaveSpikes(string examKey, PersistedSpikes spikes, CancellationToken token)
         {
             using var db = await OpenOrCreateDatabase(token);
+            if (!await db.SaveSpikes(examKey, spikes, true, token))
+                throw new Exception("Failed to save the spikes.");
+        }
+        public async Task<bool> SaveSpikes(string examKey, PersistedSpikes spikes, bool overrideSpikes, CancellationToken token)
+        {
+            var success = true;
 
-            await db.ExecuteTransaction(async () =>
+            await ExecuteTransaction(async () =>
             {
-                using var cmd = db.CreateCommand();
+                using var cmd = CreateCommand();
 
-                cmd.CommandText = @"INSERT OR REPLACE INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes, @MeasureMode);";
+                cmd.CommandText = @$"INSERT OR {(overrideSpikes ? "REPLACE" : "IGNORE")} INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes, @MeasureMode);";
                 cmd.Parameters.AddWithValue("ExamKey", examKey);
                 cmd.Parameters.AddWithValue("PosteriorCornea", spikes.PosteriorCornea);
                 cmd.Parameters.AddWithValue("AnteriorLens", spikes.AnteriorLens);
@@ -36,10 +43,12 @@ namespace SpikeFinder.SQLite
                 cmd.Parameters.AddWithValue("MeasureMode", (object?)spikes.MeasureMode ?? DBNull.Value);
 
                 if (await cmd.ExecuteNonQueryAsync(token) != 1)
-                    throw new Exception("Failed to save the spikes.");
+                    success = false;
             }, token);
 
             _spikesSaved.OnNext((examKey, spikes));
+
+            return success;
         }
         public static async Task<Dictionary<string, PersistedSpikes>> LoadPersistedSpikes(LoadingItemViewModel loadingProgress, Action<IDisposable> addSubscription, CancellationToken token)
         {
@@ -50,6 +59,18 @@ namespace SpikeFinder.SQLite
 
             var results = new Dictionary<string, PersistedSpikes>();
 
+            await foreach (var spike in db.LoadPersistedSpikes(token))
+            {
+                results[spike.key] = spike.spikes;
+                loadingProgress.ActualProgress++;
+            }
+
+            return results;
+        }
+
+        public async IAsyncEnumerable<(string key, PersistedSpikes spikes)> LoadPersistedSpikes([EnumeratorCancellation] CancellationToken token)
+        {
+            using var cmd = CreateCommand();
             cmd.CommandText = "SELECT * FROM Spikes;";
 
             using var reader = await cmd.ExecuteReaderAsync(token);
@@ -59,16 +80,13 @@ namespace SpikeFinder.SQLite
 
             while (await reader.ReadAsync(token))
             {
-                results[reader.GetString(0)] = new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6), (MeasureMode?)await ReadByte(7));
-                loadingProgress.ActualProgress++;
+                yield return (reader.GetString(0), new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6), (MeasureMode?)await ReadByte(7)));
             }
-
-            return results;
         }
 
 
         private static Task<SQLiteDatabase> OpenOrCreateDatabase(CancellationToken token) => OpenOrCreateDatabase(SfMachineSettings.Instance.SqliteDatabasePath!, token);
-        private static async Task<SQLiteDatabase> OpenOrCreateDatabase(string path, CancellationToken token)
+        public static async Task<SQLiteDatabase> OpenOrCreateDatabase(string path, CancellationToken token)
         {
             var sql = new SQLiteDatabase(path);
 
@@ -134,7 +152,7 @@ INSERT INTO Version VALUES(2);
                 throw new Exception("Failed to upgrade database to v2");
         }
         private Task OpenAsync(CancellationToken token) => _sql.OpenAsync(token);
-        private SQLiteCommand CreateCommand() => _sql.CreateCommand();
+        public SQLiteCommand CreateCommand() => _sql.CreateCommand();
         private async Task ExecuteTransaction(Func<Task> transactedSql, CancellationToken token)
         {
             using var tran = await _sql.BeginTransactionAsync(token);

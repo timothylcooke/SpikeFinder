@@ -177,5 +177,37 @@
                 </Grid>
             </Grid>
         </ScrollViewer>
+
+        <ScrollViewer Grid.Column="2" x:Name="MergeDatabasesSettings" Visibility="{Binding CurrentPage, ConverterParameter='$`{x}` == `MergeDatabases` ? `Visible` : `Collapsed`', Converter={StaticResource Math}}" FocusManager.IsFocusScope="True" FocusManager.FocusedElement="{Binding ElementName=MainDatabase}" VerticalScrollBarVisibility="Auto" Focusable="False">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.ColumnSpan="3" TextWrapping="Wrap">With this tool, you can merge multiple database files into a single database. <Run FontStyle="Italic">Main Database</Run> is the database we are going to keep. Any records found in <Run FontStyle="Italic">Additional Database</Run> will be added to <Run FontStyle="Italic">Main Database</Run>. The <Run FontStyle="Italic">Additional Database</Run> will not be changed. If any eyes are found in both databases, the spikes from <Run FontStyle="Italic">Additional Database</Run> will be ignored, in favor of the spikes found in <Run FontStyle="Italic">Main Database</Run>.</TextBlock>
+                <Label Target="{Binding ElementName=MainDatabase}" Grid.Row="2" Grid.ColumnSpan="3" Content="Main Database" />
+                <TextBox x:Name="MainDatabase" Grid.Row="3" Text="{Binding MainDatabasePath, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Command="{Binding BrowseCommand}" CommandParameter="{Binding ElementName=MainDatabase}" Grid.Row="3" Grid.Column="2" MinWidth="75" Content="_Browse" />
+
+                <Label Target="{Binding ElementName=AdditionalDatabase}" Grid.Row="5" Grid.ColumnSpan="3" Content="Additional Database" />
+                <TextBox x:Name="AdditionalDatabase" Grid.Row="6" Text="{Binding AdditionalDatabasePath, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Command="{Binding BrowseCommand}" CommandParameter="{Binding ElementName=AdditionalDatabase}" Grid.Row="6" Grid.Column="2" MinWidth="75" Content="Brows_e" />
+
+                <Button Grid.Row="9" Grid.Column="3" MinWidth="75" Content="Merge" Command="{Binding MergeCommand}" />
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </rxui:ReactiveUserControl>
