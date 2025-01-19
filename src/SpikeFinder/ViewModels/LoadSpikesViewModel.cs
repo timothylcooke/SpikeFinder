@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -45,7 +46,7 @@ namespace SpikeFinder.ViewModels
                     .ToPropertyEx(this, x => x.MeasurementsToRead));
 
                 // reading and decompressing are done once per ascan.
-                new[] { loadingItemCount, loadingSpikeData }.ForEach(x => d(x.Initialize(this.WhenAnyValue(y => y.MeasurementsToRead).Select(y => y.TotalScans))));
+                new[] { loadingItemCount, loadingSpikeData }.ForEach(x => d(x.Initialize(this.WhenAnyValue(y => y.MeasurementsToRead, y => y.TotalScans))));
 
                 // There are six cursors, six dimensions, and one biometry per measurement. So 13 items to read.
                 d(loadingCursors.Initialize(exam.PersistedSpikes == null ? this.WhenAnyValue(y => y.MeasurementsToRead).Select(y => y.Measurements * 13) : Observable.Return<long?>(0)));
@@ -58,7 +59,7 @@ namespace SpikeFinder.ViewModels
 
                 var readAndDecompressSpikes =
                     // Fetch the spike data from MySQL
-                    ReadSpikes(exam, RxApp.TaskpoolScheduler)
+                    ReadSpikes(exam, this.WhenAnyValue(x => x.MeasurementsToRead).Where(x => x.TotalScans is > 0).Select(x => (x.ExamId, x.Version)))
                     .Do(x => Debug.WriteLine($"Found scandata: {x.MeasurementId}/{x.Index}"))
 
                     // Decompress the scan data asynchronously, on as many threads as we have processors
@@ -95,7 +96,7 @@ namespace SpikeFinder.ViewModels
                     .SelectMany(x => Enumerable.Range(0, Environment.ProcessorCount).Select(y => (x.MeasurementId, StripNumber: y, x.Spikes)))
                     .Select(x => Observable.DeferAsync(async token => Observable.Return(await Task.Run(() => RenderImagePortion(x.MeasurementId, x.StripNumber, x.Spikes), token), RxApp.TaskpoolScheduler)))
                     .Merge(Environment.ProcessorCount)
-                    .ObserveOnDispatcher()
+                    .ObserveOn(RxApp.MainThreadScheduler)
                     .Do(_ => renderingSpikes.SlowlyUpdatingProgress++)
                     .ObserveOn(RxApp.TaskpoolScheduler)
                     .GroupBy(x => x.MeasurementId)
@@ -239,7 +240,7 @@ namespace SpikeFinder.ViewModels
             return RenderVisualToPng(visual, imageWidth, imageHeight);
         }
 
-        [ObservableAsProperty] private (long? Measurements, long? TotalScans) MeasurementsToRead { get; }
+        [ObservableAsProperty] private (long? Measurements, long? TotalScans, string? ExamId, int Version) MeasurementsToRead { get; }
         public IEnumerable<LoadingItemViewModel>? LoadingItems { get; }
 
         private static LenstarCursorPositions CombineCursors(IList<CursorMarker> cursors)
@@ -337,24 +338,136 @@ namespace SpikeFinder.ViewModels
             cmd.Parameters.AddWithValue("@Eye", (byte)exam.Eye);
         };
 
-        private static IObservable<(long? Measurements, long? TotalScans)> CountTotalScans(LenstarExam exam, IScheduler scheduler)
+        private static IObservable<(long? Measurements, long? TotalScans, string? , int version)> CountTotalScans(LenstarExam exam, IScheduler scheduler)
         {
-            return MySqlExtensions.RunSqlQuery<(long?, long?)>(@"SELECT COUNT(*) TotalMeasurements, SUM(n) TotalAscans FROM (
-    SELECT meas.pk_measurement, COUNT(*) n
-    FROM tbl_bio_ascan ascan
-    JOIN tbl_bio_measurement meas ON ascan.fk_measurement = meas.pk_measurement
-    WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye AND ascan.used = 1
+            IObservable<(long?, long?, string?, int)> CountTable(string ascanTable, int version) =>
+                MySqlExtensions.Connect<(long?, long?, string?, int)>(async (cmd, obs) =>
+            {
+                cmd.CommandText = $@"SELECT COUNT(measurements.pk_measurement) TotalMeasurements, IFNULL(SUM(n), 0) TotalAscans, MAX(uuid) uuid FROM (
+    SELECT exam.uuid, meas.pk_measurement, COUNT(ascan.used) n
+    FROM tbl_basic_examination exam
+    JOIN tbl_bio_measurement meas ON meas.fk_examid = exam.pk_examination
+    LEFT JOIN {ascanTable} ascan ON ascan.fk_measurement = meas.pk_measurement AND ascan.used = 1
+    WHERE exam.pk_examination = @ExamId AND meas.eye = @Eye
     GROUP BY meas.pk_measurement
-) measurements;", (reader, observer) => observer.OnNext((reader.GetInt64(0), reader.GetInt64(1))), AddSqlParameters(exam), scheduler);
+) measurements;";
+
+                cmd.Parameters.AddWithValue("ExamId", exam.ExamId);
+                cmd.Parameters.AddWithValue("Eye", (byte)exam.Eye);
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        obs.OnNext((reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), version));
+                    }
+                    else
+                    {
+                        obs.OnError(new Exception("Failed to count exams."));
+                    }
+                }
+            });
+
+            return CountTable("tbl_bio_ascan", 0)
+                .SelectMany(x => x switch {
+
+                    // If there aren't any tbl_bio_ascan, let's try tbl_bio_ascan2.
+                    (_, 0, _, 0) => CountTable("tbl_bio_ascan2", 1),
+
+                    // If we actually get a count, we continue.
+                    _ => Observable.Return(x)
+            });
         }
-        private static IObservable<CompressedSpikes> ReadSpikes(LenstarExam exam, IScheduler scheduler)
+
+        private class BlobMap
         {
-            return MySqlExtensions.RunSqlQuery<CompressedSpikes>(@"SELECT ascan.fk_measurement, ascan.idx, ascan.scan_length, ascan.scandata
-FROM tbl_bio_ascan ascan
-JOIN tbl_bio_measurement meas ON ascan.fk_measurement = meas.pk_measurement
-WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye AND ascan.used = 1
-ORDER BY ascan.fk_measurement, ascan.idx;", (reader, observer) => observer.OnNext(new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetInt32(2), (byte[])reader[3])), AddSqlParameters(exam), scheduler);
+            private BlobMap(Dictionary<string, ByteRange> blobs, byte[] bin)
+            {
+                _blobs = blobs;
+                _bin = bin;
+            }
+            private readonly Dictionary<string, ByteRange> _blobs;
+            private readonly byte[] _bin;
+            public static IObservable<BlobMap?> FromExamId(string examid) =>
+                Observable.StartAsync(async ct =>
+                {
+                    var id = examid!.Replace("-", "");
+
+                    var path = Path.Join([@"C:\EyeSuiteFileStorage", .. Enumerable.Range(0, id.Length / 2).Select(i => id.Substring(i * 2, 2)), $"bio1_{examid}.esb00"]);
+
+                    using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+                    using var sr = new StreamReader(fs);
+
+                    Dictionary<string, ByteRange> blobs = new();
+                    var regex = new Regex(@"^(\S+)\s(\d+)\s(\d+)$", RegexOptions.Compiled);
+                    int headerLength = 0;
+
+                    while (true)
+                    {
+                        switch (await sr.ReadLineAsync(ct))
+                        {
+                            case "":
+                                headerLength += 3; // \r\n\0
+                                fs.Position = headerLength;
+                                var b = new byte[fs.Length - fs.Position - 8]; // Last 8 = checksum
+                                await fs.ReadExactlyAsync(b, 0, b.Length, ct);
+                                return new BlobMap(blobs, b);
+
+                            case string line:
+                                if (regex.Match(line) is { Success: true, Groups: [{ }, { Value: { } key }, { Value: { } start }, { Value: { } len }] })
+                                    blobs[key] = new(int.Parse(start), int.Parse(len));
+                                else
+                                    throw new Exception("Blob storage is corrupt.");
+
+                                headerLength += line.Length + 2;
+                                break;
+
+                            case null:
+                                throw new Exception("Blob storage is corrupt.");
+                        }
+                    }
+                });
+            private record ByteRange(int start, int length);
+
+            public byte[] GetBlob(string key)
+            {
+                var index = _blobs[key];
+                var bytes = new byte[index.length];
+
+                Array.Copy(_bin, index.start, bytes, 0, bytes.Length);
+
+                return bytes;
+            }
         }
+
+        private static IObservable<CompressedSpikes> ReadSpikes(LenstarExam exam, IObservable<(string? examid, int version)> examInfo) =>
+            examInfo
+                .Take(1)
+                .SelectMany(x => x.version switch
+                {
+                    0 => Observable.Return((x.version, blobMap: (BlobMap?)null)),
+                    _ => BlobMap.FromExamId(x.examid!).Select(blobMap => (x.version, blobMap))
+                })
+                .SelectMany(x => MySqlExtensions.Connect<CompressedSpikes>(async (cmd, obs) =>
+                {
+                    cmd.CommandText = $@"SELECT ascan.fk_measurement, ascan.idx, ascan.scan_length{(x.version == 0 ? ", ascan.scandata" : null)}
+    FROM tbl_bio_measurement meas
+    JOIN {(x.version == 0 ? "tbl_bio_ascan" : "tbl_bio_ascan2")} ascan ON ascan.fk_measurement = meas.pk_measurement
+    WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye AND ascan.used = 1
+    ORDER BY ascan.fk_measurement, ascan.idx;";
+
+                    cmd.Parameters.AddWithValue("ExamId", exam.ExamId);
+                    cmd.Parameters.AddWithValue("Eye", (byte)exam.Eye);
+
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            obs.OnNext(new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetInt32(2), x.version == 0 ? (byte[])reader[3] : x.blobMap!.GetBlob($"{reader.GetInt32(0)}-a-{reader.GetByte(1)}")));
+                        }
+                    }
+                }));
         private static IObservable<CursorMarker> ReadCursors(LenstarExam exam, IScheduler scheduler)
         {
             return MySqlExtensions.RunSqlQuery<CursorMarker>(@"SELECT meas.pk_measurement, curs.cursor_elem, curs.scan_pos, curs.value

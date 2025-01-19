@@ -17,6 +17,25 @@ namespace SpikeFinder.Extensions
 {
     public static class MySqlExtensions
     {
+        public static IObservable<T> Connect<T>(Func<MySqlCommand, IObserver<T>, Task> runQuery)
+        {
+            return Observable.Create<T>(async (obs, token) =>
+            {
+                await using var mysql = new MySqlConnection(SfMachineSettings.Instance.ConnectionString!.Unprotect());
+                await mysql.OpenAsync(token);
+
+                await using var cmd = mysql.CreateCommand();
+                cmd.CommandTimeout = 2147483;
+                cmd.CommandText = "set net_write_timeout=99999;set net_read_timeout=99999;";
+                await cmd.ExecuteNonQueryAsync(token);
+
+                await runQuery(cmd, obs);
+
+                obs.OnCompleted();
+            });
+        }
+
+        [Obsolete]
         public static Task<T> RunSqlQuery<T>(string query, Func<DbDataReader, Task> readResults, Func<T> accumulateResult, CancellationToken token, Action<MySqlCommand>? addParameters = null) => Task.Run(async () =>
         {
             await using var mysql = new MySqlConnection(SfMachineSettings.Instance.ConnectionString!.Unprotect());
@@ -40,6 +59,8 @@ namespace SpikeFinder.Extensions
 
             return accumulateResult();
         }, token);
+
+        [Obsolete]
         public static IObservable<T> RunSqlQuery<T>(string query, Action<DbDataReader, IObserver<T>> readNext, Action<MySqlCommand> addSqlParameters, IScheduler scheduler) => Observable.Create<T>(async (observer, token) =>
         {
             try
