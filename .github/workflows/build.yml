@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - main
+    - development
+    - actions-test
+  pull_request:
+    branches:
+    - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build x64
+      run: dotnet publish src/SpikeFinder/SpikeFinder.csproj -p:PublishProfile=src/SpikeFinder/Properties/PublishProfiles/FolderProfile.x64.pubxml
+
+    - name: Build x86
+      run: dotnet publish src/SpikeFinder/SpikeFinder.csproj -p:PublishProfile=src/SpikeFinder/Properties/PublishProfiles/FolderProfile.x86.pubxml
+
+    - name: Build Installer
+      uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+      with:
+        path: src/SetupScript.iss
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Setup
+        path: src/SpikeFinder/bin/Setup/SpikeFinderSetup-*.exe
+        compression-level: 0
+        if-no-files-found: error
