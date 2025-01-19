@@ -52,17 +52,20 @@ namespace SpikeFinder.Views
 
                 var isValidSettings = SfMachineSettings.Instance is { } settings && settings.SqliteDatabasePath is not null && settings.ConnectionString is not null;
 
-                if (!isValidSettings && Task.Run(async () => await MySqlExtensions.ReadConnectionStringFromEyeSuite()) is { Result: { } connectionString })
-                {
-                    SfMachineSettings.Instance.ConnectionString ??= new ProtectedString(connectionString);
-                    SfMachineSettings.Instance.SqliteDatabasePath ??= SfSettings.DefaultSqlitePath;
+                d((isValidSettings ? Observable.Return<IRoutableViewModel>(new LoadGridViewModel()) :
+                    MySqlExtensions.ReadConnectionStringFromEyeSuite()
+                    .Select(x =>
+                    {
+                        if (x is null)
+                            return (IRoutableViewModel)new SettingsViewModel();
 
-                    isValidSettings = true;
-                }
+                        SfMachineSettings.Instance.ConnectionString ??= new ProtectedString(x);
+                        SfMachineSettings.Instance.SqliteDatabasePath ??= SfSettings.DefaultSqlitePath;
 
-                IRoutableViewModel firstViewModel = isValidSettings ? new LoadGridViewModel() : new SettingsViewModel();
-
-                d(Observable.Return(firstViewModel).InvokeCommand(ViewModel.HostScreen.Router.Navigate));
+                        return new LoadGridViewModel();
+                    }))
+                    .ObserveOn(RxApp.MainThreadScheduler)
+                    .InvokeCommand(ViewModel.HostScreen.Router.Navigate));
             });
 
             ShowChildWindowCommand = ReactiveCommand.CreateFromTask<ChildWindow>(ShowChildWindowAsync);

@@ -54,6 +54,18 @@ namespace SpikeFinder.ViewModels
                 d(BrowseSqliteDatabasePathCommand = ReactiveCommand.Create<Window, string?>(BrowsePath));
                 d(BrowseSqliteDatabasePathCommand.WhereNotNull().BindTo(this, x => x.SqliteDatabasePath));
 
+                FetchConnectionStringCommand = ReactiveCommand.Create<Unit, Unit>(x => x);
+                d(FetchConnectionStringCommand.SelectMany(_ => MySqlExtensions.ReadConnectionStringFromEyeSuite())
+                    .Do(x =>
+                    {
+                        if (x is null)
+                        {
+                            App.SpikeFinderMainWindow.Notify(Severity.Information, "Failed to load the connection string from EyeSuite.", dismissAfter: TimeSpan.FromSeconds(5));
+                        }
+                    })
+                    .WhereNotNull()
+                    .BindTo(this, x => x.ConnectionString));
+
                 d(BrowseCommand = ReactiveCommand.Create<TextBox, (TextBox textBox, string? path)>(x => (x, BrowsePath(x))));
                 d(BrowseCommand.Where(x => x.path is not null).Subscribe(x => x.textBox.Text = x.path));
 
@@ -182,6 +194,7 @@ namespace SpikeFinder.ViewModels
         [Reactive] public bool HideConnectionString { get; set; }
         [Reactive] public Visibility ConnectionStringVisibility { get; private set; }
 
+        [Reactive] public ReactiveCommand<Unit, Unit> FetchConnectionStringCommand { get; private set; }
         [Reactive] public ReactiveCommand<Window, string?>? BrowseSqliteDatabasePathCommand { get; private set; }
         [Reactive] public ReactiveCommand<TextBox, (TextBox textBox, string? path)>? BrowseCommand { get; private set; }
         [Reactive] public ReactiveCommand<Unit, string?>? MergeCommand { get; private set; }

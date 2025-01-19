@@ -81,35 +81,38 @@ namespace SpikeFinder.Extensions
             }
         }).SubscribeOn(scheduler);
 
-        private static async Task<MemoryStream?> ReadDbx()
+        private static IObservable<MemoryStream?> ReadDbx()
         {
-            try
+            return Observable.StartAsync(async ct =>
             {
-                var eyeSuiteDbx = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Haag-Streit", "EyeSuite", "eyesuite.dbx");
-
-                if (!File.Exists(eyeSuiteDbx))
-                    return null;
-
-                using var fs = File.Open(eyeSuiteDbx, FileMode.Open, FileAccess.Read, FileShare.Read);
-                var ms = new MemoryStream();
-
-                var buff = new byte[fs.Length];
-
-                int br;
-                do
+                try
                 {
-                    br = await fs.ReadAsync(buff, 0, buff.Length);
-                    await ms.WriteAsync(buff, 0, br);
-                } while (br > 0);
+                    var eyeSuiteDbx = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Haag-Streit", "EyeSuite", "eyesuite.dbx");
 
-                ms.Position = 0;
+                    if (!File.Exists(eyeSuiteDbx))
+                        return null;
 
-                return ms;
-            }
-            catch
-            {
-                return null;
-            }
+                    using var fs = File.Open(eyeSuiteDbx, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var ms = new MemoryStream();
+
+                    var buff = new byte[fs.Length];
+
+                    int br;
+                    do
+                    {
+                        br = await fs.ReadAsync(buff, 0, buff.Length, ct);
+                        await ms.WriteAsync(buff, 0, br, ct);
+                    } while (br > 0);
+
+                    ms.Position = 0;
+
+                    return ms;
+                }
+                catch
+                {
+                    return null;
+                }
+            });
         }
 
         private static async Task<T?> ReadStream<T>(Stream? str, Func<Task<T>> action)
@@ -132,22 +135,18 @@ namespace SpikeFinder.Extensions
                 str.Position = originalPosition;
             }
         }
-        private static async Task<byte[]?> ReadBytes(Stream? str, long bytes)
+        private static async Task<byte[]?> ReadBytes(Stream? str, CancellationToken ct, long bytes)
         {
             if (str!.Length - str.Position < bytes)
                 return default;
 
             var buff = new byte[bytes];
 
-            int br = 0;
-            do
-            {
-                br += await str.ReadAsync(buff, br, buff.Length - br);
-            } while (br < bytes);
+            await str.ReadExactlyAsync(buff, 0, buff.Length, ct);
 
             return buff;
         }
-        private static Task<string?> DecryptDES(Stream? str) => ReadStream(str, async () =>
+        private static Task<string?> DecryptDES(Stream? str, CancellationToken ct) => ReadStream(str, async () =>
             {
                 using var des = DES.Create();
 
@@ -162,15 +161,15 @@ namespace SpikeFinder.Extensions
                 var cs = new CryptoStream(str!, decryptor, CryptoStreamMode.Read);
                 var sr = new StreamReader(cs, Encoding.UTF8);
 
-                return await sr.ReadToEndAsync();
+                return await sr.ReadToEndAsync(ct);
             });
-        private static Task<string?> DecryptAES(Stream? str) => ReadStream(str, async () =>
+        private static Task<string?> DecryptAES(Stream? str, CancellationToken ct) => ReadStream(str, async () =>
         {
             //using var aes = Aes.Create();
 
             const int tagSize = 16;
 
-            if (await ReadBytes(str, 16) is not { } salt || await ReadBytes(str, 12) is not { } nonce || await ReadBytes(str, str!.Length - str.Position - tagSize) is not { } ciphertext || await ReadBytes(str, tagSize) is not { } tag)
+            if (await ReadBytes(str, ct, 16) is not { } salt || await ReadBytes(str, ct, 12) is not { } nonce || await ReadBytes(str, ct, str!.Length - str.Position - tagSize) is not { } ciphertext || await ReadBytes(str, ct, tagSize) is not { } tag)
                 return default;
 
             var key = KeyDerivation.Pbkdf2("T%eB[4zSa$r65!eW", salt, KeyDerivationPrf.HMACSHA512, 65535, 32);
@@ -183,23 +182,18 @@ namespace SpikeFinder.Extensions
             return Encoding.UTF8.GetString(plaintext);
         });
 
-        public async static Task<string?> ReadConnectionStringFromEyeSuite()
+        public static IObservable<string?> ReadConnectionStringFromEyeSuite()
         {
-            try
-            {
-                using var dbx = await ReadDbx();
-
-                var settings = await DecryptAES(dbx) ?? await DecryptDES(dbx);
-
-                var iniData = settings?
+            return ReadDbx()
+                .SelectMany(async (dbx, ct) => await DecryptAES(dbx, ct) ?? await DecryptDES(dbx, ct))
+                .Select(x => x?
                         .Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries)
                         .Where(x => !x.StartsWith("#") && x.Contains('='))
                         .GroupBy(x => x.Substring(0, x.IndexOf('=')))
-                        .ToDictionary(x => x.Key, x => x.First().Substring(x.Key.Length + 1));
-
-                string? GetIniValue(string key)
+                        .ToDictionary(x => x.Key, x => x.First().Substring(x.Key.Length + 1)))
+                .Select(x => x is null ? null : new Func<string, string?>(key =>
                 {
-                    if (iniData?.TryGetValue(key, out var value) is true)
+                    if (x?.TryGetValue(key, out var value) is true)
                     {
                         var sb = new StringBuilder();
 
@@ -223,24 +217,28 @@ namespace SpikeFinder.Extensions
                     }
 
                     return null;
-                }
-
-                if (GetIniValue("remoteConnection") != "true")
-                    return new MySqlConnectionStringBuilder() { Port = 3307, Server = "localhost", Database = GetIniValue("name") ?? "octosoft", UserID = "hsuser", Password = "J,mFP%5m7Tkp7Vdc" }.ConnectionString;
-
-                return new MySqlConnectionStringBuilder()
+                }))
+                .Select(GetIniValue =>
                 {
-                    Port = uint.Parse(GetIniValue("port") ?? "3307"),
-                    Server = GetIniValue("location") ?? "localhost",
-                    Database = GetIniValue("name") ?? "octosoft",
-                    UserID = GetIniValue("username") ?? "root",
-                    Password = GetIniValue("password") ?? ""
-                }.ConnectionString;
-            }
-            // If anything fails, give up... We tried our best. We'll let the user solve this problem for us.
-            catch { }
+                    if (GetIniValue is null)
+                        return null;
 
-            return null;
+                    var isLocal = GetIniValue("remoteConnection") != "true";
+
+                    return new MySqlConnectionStringBuilder()
+                    {
+                        Port = isLocal ? 3307 : uint.Parse(GetIniValue("port") ?? "3307"),
+                        Server = isLocal ? "localhost" : GetIniValue("location") ?? "localhost",
+                        Database = GetIniValue("name") ?? "octosoft",
+                        UserID = isLocal ? "hsuser" : GetIniValue("username") ?? "root",
+                        Password = isLocal ? "J,mFP%5m7Tkp7Vdc" : (GetIniValue("password") ?? "")
+                    }.ConnectionString;
+                })
+                .Catch((Exception ex) =>
+                {
+                    App.SpikeFinderMainWindow.NotifyException(ex);
+                    return Observable.Return<string?>(null);
+                });
         }
     }
 }

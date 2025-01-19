@@ -41,20 +41,27 @@
                     <RowDefinition Height="20" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="20" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Label Content="Sqlite Database Path" />
-                <DockPanel Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Label Grid.ColumnSpan="3" Content="Sqlite Database Path" />
+                <DockPanel Grid.Row="1" Grid.ColumnSpan="3">
                     <Button Content="_Browse" MinWidth="75" DockPanel.Dock="Right" HorizontalAlignment="Right" TabIndex="1" Command="{Binding BrowseSqliteDatabasePathCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" />
                     <TextBox Text="{Binding SqliteDatabasePath, UpdateSourceTrigger=PropertyChanged}" TabIndex="0" x:Name="DbPathTextBox" Margin="0,0,20,0" />
                 </DockPanel>
 
-                <Label Grid.Row="3" Content="MySQL Connection String" />
-                <CheckBox Grid.Row="4" IsChecked="{Binding HideConnectionString}" Content="_Hide Connection String" HorizontalAlignment="Left" TabIndex="2" />
-                <TextBox Grid.Row="5" Text="{Binding ConnectionString, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding ConnectionStringVisibility}" Margin="0,8,0,0" TabIndex="3" />
+                <Label Grid.Row="3" Grid.ColumnSpan="3" Content="MySQL Connection String" />
+                <CheckBox Grid.Row="4" Grid.ColumnSpan="3" IsChecked="{Binding HideConnectionString}" Content="_Hide Connection String" HorizontalAlignment="Left" TabIndex="2" />
+                <TextBox Grid.Row="6" Text="{Binding ConnectionString, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding ConnectionStringVisibility}" TabIndex="3" />
+                <Button Grid.Row="6" Grid.Column="2" Visibility="{Binding ConnectionStringVisibility}" Command="{Binding FetchConnectionStringCommand}" Content="Fetch from EyeSuite" MinWidth="75" />
             </Grid>
         </ScrollViewer>
 
