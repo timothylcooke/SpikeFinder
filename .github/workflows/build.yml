@@ -4,8 +4,6 @@ on:
   push:
     branches:
     - main
-    - development
-    - actions-test
   pull_request:
     branches:
     - main
@@ -16,7 +14,8 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Build x64
       run: dotnet publish src/SpikeFinder/SpikeFinder.csproj -p:PublishProfile=src/SpikeFinder/Properties/PublishProfiles/FolderProfile.x64.pubxml
@@ -29,9 +28,10 @@ jobs:
       with:
         path: src/SetupScript.iss
 
-    - uses: actions/upload-artifact@v4
+    - name: Upload setup file
+      uses: actions/upload-artifact@v4
       with:
-        name: Setup
+        name: Download Installer
         path: src/SpikeFinder/bin/Setup/SpikeFinderSetup-*.exe
         compression-level: 0
         if-no-files-found: error
