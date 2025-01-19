@@ -5,10 +5,12 @@ using SpikeFinder.SQLite;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace SpikeFinder.ViewModels
 {
@@ -17,7 +19,7 @@ namespace SpikeFinder.ViewModels
         public LenstarExam Exam { get; }
         public double[] Spikes { get; }
         public double MaxValue { get; }
-        public byte[] Image { get; }
+        public Geometry[] Geometries { get; }
         public LenstarCursorPositions Cursors { get; }
 
         public ObservableCollection<CursorPosition> SpikeControlCursors { get; }
@@ -30,7 +32,7 @@ namespace SpikeFinder.ViewModels
 
         public string Notes { get; set; }
 
-        public SpikesViewModel(LenstarExam exam, double[] spikes, double maxValue, byte[] image, LenstarCursorPositions cursors)
+        public SpikesViewModel(LenstarExam exam, double[] spikes, double maxValue, Geometry[] geometries, LenstarCursorPositions cursors)
         {
             UrlPathSegment = $"/Spikes/{exam.Key}";
             Title = $"{exam.FirstName} {exam.LastName} (DOB {exam.DOB:d}; #{exam.PatientNumber}) {exam.Eye} measurement {exam.Timestamp:d}";
@@ -40,7 +42,7 @@ namespace SpikeFinder.ViewModels
             Exam = exam;
             Spikes = spikes;
             MaxValue = maxValue;
-            Image = image;
+            Geometries = geometries;
             Cursors = cursors;
             MeasureMode = exam.MeasureMode ?? MeasureMode.PHAKIC;
             Notes = exam.PersistedSpikes?.Notes ?? "";

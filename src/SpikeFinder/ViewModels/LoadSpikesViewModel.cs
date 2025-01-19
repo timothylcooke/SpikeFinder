@@ -25,8 +25,8 @@ namespace SpikeFinder.ViewModels
 {
     public class LoadSpikesViewModel : SfViewModel
     {
-        const int imageHeight = 1200;
-        const int imageWidth = 4800;
+        public const int ImageHeight = 1200;
+        public const int ImageWidth = 4800;
         const double spikesPower = 1.8;
 
         public LoadSpikesViewModel(LenstarExam exam)
@@ -37,8 +37,7 @@ namespace SpikeFinder.ViewModels
             var loadingItemCount = new LoadingItemViewModel(1, "Figuring out much stuff there is to load…");
             var loadingCursors = new LoadingItemViewModel(2, "Loading Cursor positions…");
             var loadingSpikeData = new LoadingItemViewModel(3, "Loading Spike Data…");
-            var renderingSpikes = new LoadingItemViewModel(4, "Rendering Spikes…");
-            LoadingItems = new[] { loadingItemCount, loadingSpikeData, loadingCursors, renderingSpikes };
+            LoadingItems = [loadingItemCount, loadingSpikeData, loadingCursors];
 
             this.WhenActivated(d =>
             {
@@ -50,9 +49,6 @@ namespace SpikeFinder.ViewModels
 
                 // There are six cursors, six dimensions, and one biometry per measurement. So 13 items to read.
                 d(loadingCursors.Initialize(exam.PersistedSpikes == null ? this.WhenAnyValue(y => y.MeasurementsToRead).Select(y => y.Measurements * 13) : Observable.Return<long?>(0)));
-
-                // There is one spike per measurement, plus a merged spike we must render. Each render job is split into {Environment.ProcessorCount} pieces.
-                d(renderingSpikes.Initialize(this.WhenAnyValue(y => y.MeasurementsToRead).Select(y => (y.Measurements + 1) * (long?)Environment.ProcessorCount)));
 
                 // Mark loadingItemCount as finished as soon as we load the total ascan data count.
                 d(this.WhenAnyValue(y => y.MeasurementsToRead).Where(x => x.TotalScans.HasValue).Take(1).ObserveOn(RxApp.MainThreadScheduler).Subscribe(x => loadingItemCount.SlowlyUpdatingProgress = x.TotalScans!.Value));
@@ -91,17 +87,6 @@ namespace SpikeFinder.ViewModels
                         .Aggregate(SumDecompressedScans)
                         .CombineLatest(readAndDecompressSpikes.Sum(x => x.count), TransformSpikesForRender)
                         .Select(x => (MeasurementId: -1, Spikes: x));
-
-                var renderedSpikes = mergeSpikes
-                    .SelectMany(x => Enumerable.Range(0, Environment.ProcessorCount).Select(y => (x.MeasurementId, StripNumber: y, x.Spikes)))
-                    .Select(x => Observable.DeferAsync(async token => Observable.Return(await Task.Run(() => RenderImagePortion(x.MeasurementId, x.StripNumber, x.Spikes), token), RxApp.TaskpoolScheduler)))
-                    .Merge(Environment.ProcessorCount)
-                    .ObserveOn(RxApp.MainThreadScheduler)
-                    .Do(_ => renderingSpikes.SlowlyUpdatingProgress++)
-                    .ObserveOn(RxApp.TaskpoolScheduler)
-                    .GroupBy(x => x.MeasurementId)
-                    .SelectMany(x => Observable.Return(x.Key).CombineLatest(x.ToList(), (measurementId, images) => (measurementId, images)))
-                    .ToDictionary(x => x.measurementId, x => (x.images[0].Spikes, Image: RenderImage(x.images.Select(y => (y.StripNumber, y.Image)))));
 
                 IObservable<LenstarCursorPositions> cursors;
 
@@ -162,7 +147,7 @@ namespace SpikeFinder.ViewModels
                     d(readCursors.Select(_ => Unit.Default)
                         .Merge(readDimensions.Select(_ => Unit.Default))
                         .Merge(readBiometry.Select(_ => Unit.Default))
-                        .ObserveOnDispatcher()
+                        .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(_ => loadingCursors.SlowlyUpdatingProgress++));
 
                     // average all cursors.
@@ -194,11 +179,13 @@ namespace SpikeFinder.ViewModels
                     cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE));
                 }
 
-                d(renderedSpikes
-                    .CombineLatest(cursors, (renderedSpikes, cursors) => (renderedSpikes, cursors))
-                    .Select(x => new SpikesViewModel(exam, x.renderedSpikes[-1].Spikes.Spikes, x.renderedSpikes[-1].Spikes.MaxValue, MergeImages(x.renderedSpikes.Select(x => x.Value.Image)), x.cursors))
+                d(mergeSpikes
+                    .ObserveOn(RxApp.MainThreadScheduler)
+                    .Select(x => (x.Spikes.MaxValue, x.Spikes.Spikes, X: new Func<int, double>(y => y * Convert.ToDouble(ImageWidth) / x.Spikes.Spikes.Length), Y: new Func<double, double>(y => ImageHeight - y / x.Spikes.MaxValue * ImageHeight)))
+                    .Select(x => (x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 1000).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 1000, Math.Min(1000, x.Spikes.Length - i * 1000)).Select(i => $"{x.X(i)},{x.Y(x.Spikes[i])}"))))).ToArray()))
+                    .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered.Spikes, rendered.MaxValue, rendered.Geometries, cursors))
                     .Cast<IRoutableViewModel>()
-                    .ObserveOnDispatcher()
+                    .ObserveOn(RxApp.MainThreadScheduler)
                     .CatchAndShowErrors()
                     .Select(x => HostScreen.Router.NavigateBack.Execute().Select(_ => x))
                     .Switch()
@@ -215,29 +202,6 @@ namespace SpikeFinder.ViewModels
                 //    .Switch()
                 //    .InvokeCommand(HostScreen.Router.Navigate));
             });
-        }
-
-        private byte[] MergeImages(IEnumerable<byte[]> images)
-        {
-            var visual = new DrawingVisual();
-            var context = visual.RenderOpen();
-
-            foreach (var image in images)
-            {
-                using (var ms = new MemoryStream(image))
-                {
-                    var stripBmp = new BitmapImage();
-                    stripBmp.BeginInit();
-                    stripBmp.StreamSource = ms;
-                    stripBmp.CacheOption = BitmapCacheOption.OnLoad;
-                    stripBmp.EndInit();
-
-                    context.DrawImage(stripBmp, new Rect(0, 0, imageWidth, imageHeight));
-                }
-            }
-            context.Close();
-
-            return RenderVisualToPng(visual, imageWidth, imageHeight);
         }
 
         [ObservableAsProperty] private (long? Measurements, long? TotalScans, string? ExamId, int Version) MeasurementsToRead { get; }
@@ -257,79 +221,6 @@ namespace SpikeFinder.ViewModels
         private static int? CursorPosition(IList<CursorMarker> cursors, CursorElement element)
         {
             return cursors.SingleOrDefault(x => x.Cursor == element)?.ScanPos is { } position ? (int)Math.Round(position) : new int?();
-        }
-
-        private static byte[] RenderVisualToPng(Visual visual, int width, int height)
-        {
-            var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            bmp.Render(visual);
-
-            using var ms = new MemoryStream();
-            var encoder = new PngBitmapEncoder();
-
-            encoder.Frames.Add(BitmapFrame.Create(bmp));
-            encoder.Save(ms);
-
-            return ms.ToArray();
-        }
-        private static (int MeasurementId, int StripNumber, byte[] Image, SpikeData Spikes) RenderImagePortion(int measurementId, int stripNumber, SpikeData spikes)
-        {
-            var visual = new DrawingVisual();
-            var context = visual.RenderOpen();
-
-            var pointsPerStrip = (int)Math.Ceiling((double)spikes.Spikes.Length / Environment.ProcessorCount);
-
-            var firstPoint = pointsPerStrip * stripNumber;
-            var numPoints = Math.Min(firstPoint + pointsPerStrip, spikes.Spikes.Length - 1) - firstPoint;
-
-            var stripWidth = (double)imageWidth / Environment.ProcessorCount;
-
-            // bounds represents the x-y position of coordinates (0,0) - (1,1).
-            // x coordinate is the index in the array; y coordinate is the value at that index.
-            var bounds = new Rect(-stripNumber * stripWidth, imageHeight, stripWidth / pointsPerStrip, imageHeight / spikes.MaxValue);
-
-            Point CoordinatesOf(int i) => new(bounds.X + bounds.Width * i, bounds.Y - bounds.Height * spikes.Spikes[i]);
-
-            var brush = measurementId < 0 ? Brushes.Black : (measurementId % 2) switch { 0 => Brushes.Red, _ => Brushes.Green };
-            //var brush = measurementId < 0 ? Brushes.Black : (measurementId % 6) switch { 0 => Brushes.Red, 1 => Brushes.Orange, 2 => Brushes.LightGreen, 3 => Brushes.DarkGreen, 4 => Brushes.Blue, _ => Brushes.Violet };
-
-            var tallest = Enumerable.Range(firstPoint + 1, numPoints).Select(i => CoordinatesOf(i)).Max(x => x.Y);
-
-
-            var geometry = new PathGeometry(new[] { new PathFigure(new Point(0, 0), Enumerable.Range(firstPoint, numPoints).Select(i => new LineSegment(CoordinatesOf(i), i > firstPoint)), false) });
-            var drawing = new GeometryDrawing(null, new Pen(brush, 1), geometry);
-            var image = new DrawingImage(drawing);
-
-            var drawingBounds = drawing.Bounds;
-
-            context.DrawImage(image, new Rect(drawingBounds.X, drawingBounds.Y, stripWidth - drawingBounds.X, drawingBounds.Height));
-            context.Close();
-
-            return (measurementId, stripNumber, RenderVisualToPng(visual, (int)Math.Round(stripWidth), imageHeight), spikes);
-        }
-        private static byte[] RenderImage(IEnumerable<(int StripNumber, byte[] Image)> imagePortions)
-        {
-            var visual = new DrawingVisual();
-            var context = visual.RenderOpen();
-
-            var stripWidth = imageWidth / Environment.ProcessorCount;
-
-            foreach (var image in imagePortions)
-            {
-                using (var ms = new MemoryStream(image.Image))
-                {
-                    var stripBmp = new BitmapImage();
-                    stripBmp.BeginInit();
-                    stripBmp.StreamSource = ms;
-                    stripBmp.CacheOption = BitmapCacheOption.OnLoad;
-                    stripBmp.EndInit();
-
-                    context.DrawImage(stripBmp, new Rect(image.StripNumber * stripWidth, 0, stripWidth, imageHeight));
-                }
-            }
-            context.Close();
-
-            return RenderVisualToPng(visual, imageWidth, imageHeight);
         }
 
         private static Action<MySqlCommand> AddSqlParameters(LenstarExam exam) => cmd =>

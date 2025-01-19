@@ -3,6 +3,8 @@ using SpikeFinder.Attributes;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
 using SpikeFinder.RefractiveIndices;
+using SpikeFinder.ViewModels;
+using Syncfusion.Data.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -89,6 +91,8 @@ namespace SpikeFinder.Controls
                     .BindTo(this, x => x.UnmarkedCursors));
             });
         }
+
+        private readonly Geometry _clip = Geometry.Parse($"M0,0H{LoadSpikesViewModel.ImageWidth}V{LoadSpikesViewModel.ImageHeight}H0Z");
 
         // WPF really does a really bad job of handling input from precision touchpads. Here, we hook and intercept WM_MOUSEWHEEL and WM_MOUSEHWHEEL messages to handle all scrolling/zooming.
         private IntPtr WindowProc(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -221,12 +225,12 @@ namespace SpikeFinder.Controls
         }
         public static readonly DependencyProperty WavelengthProperty = DependencyProperty.Register(nameof(Wavelength), typeof(double), typeof(SpikesControl), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public ImageSource? SpikesImage
+        public Geometry[] Geometries
         {
-            get => (ImageSource)GetValue(SpikesImageProperty);
-            set => SetValue(SpikesImageProperty, value);
+            get => (Geometry[])GetValue(GeometriesProperty);
+            set => SetValue(GeometriesProperty, value);
         }
-        public static readonly DependencyProperty SpikesImageProperty = DependencyProperty.Register(nameof(SpikesImage), typeof(ImageSource), typeof(SpikesControl), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty GeometriesProperty = DependencyProperty.Register(nameof(Geometries), typeof(Geometry[]), typeof(SpikesControl), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public double[]? Spikes
         {
@@ -291,7 +295,7 @@ namespace SpikeFinder.Controls
         private const double CursorStartDragWithin = 15;
         private const double CursorLineLength = 10;
         private const double MinZoom = 0.25;
-        private const double MaxZoom = 4.00;
+        private const double MaxZoom = 10;
 
 
         protected override void OnQueryCursor(QueryCursorEventArgs e)
@@ -405,20 +409,24 @@ namespace SpikeFinder.Controls
 
         protected override Size MeasureOverride(Size constraint)
         {
-            if (SpikesImage is null)
-                return new(Padding.Left + Padding.Right, Padding.Top + Padding.Bottom);
-            else
-                return new(Math.Min(SpikesImage.Width * Zoom + Padding.Left + Padding.Right, constraint.Width), Math.Min(SpikesImage.Height * Zoom + Padding.Top + Padding.Bottom, constraint.Height));
+            return new(Math.Min(LoadSpikesViewModel.ImageWidth * Zoom + Padding.Left + Padding.Right, constraint.Width), Math.Min(LoadSpikesViewModel.ImageHeight * Zoom + Padding.Top + Padding.Bottom, constraint.Height));
         }
 
         protected override void OnRender(DrawingContext drawingContext)
         {
             base.OnRender(drawingContext);
 
-            if (SpikesImage is null)
+            if (Geometries is null)
                 return;
 
-            drawingContext.DrawImage(SpikesImage, new Rect(Padding.Left, Padding.Top, SpikesImage.Width * Zoom, SpikesImage.Height * Zoom));
+            drawingContext.PushTransform(new TransformGroup { Children = new TransformCollection([new ScaleTransform(Zoom, Zoom), new TranslateTransform(Padding.Left, Padding.Top)]) });
+            drawingContext.PushClip(_clip);
+
+            drawingContext.DrawGeometry(Brushes.Transparent, null, _clip);
+            Geometries.ForEach(x => drawingContext.DrawGeometry(null, new Pen(Brushes.Black, 1), x));
+
+            drawingContext.Pop();
+            drawingContext.Pop();
 
             if (Cursors is not null)
             {
@@ -553,9 +561,9 @@ namespace SpikeFinder.Controls
                 .Where(x => x.otherEnd is not null)
                 .Select(x => (x.otherEnd!.Value, x.dimension));
         }
-        private Point PixelToScreenCoordinates(Point position) => new(Padding.Left + SpikesImage.Width * Zoom * position.X / Spikes.Length, Padding.Top + SpikesImage.Height * Zoom * (1 - position.Y / MaxValue));
+        private Point PixelToScreenCoordinates(Point position) => new(Padding.Left + LoadSpikesViewModel.ImageWidth * Zoom * position.X / Spikes.Length, Padding.Top + LoadSpikesViewModel.ImageHeight * Zoom * (1 - position.Y / MaxValue));
         private Point PixelToScreenCoordinates(int xPixel) => PixelToScreenCoordinates(new Point(xPixel, Spikes[xPixel]));
-        private int ScreenCoordinatesToPixel(double x) => (int)Math.Round((x - Padding.Left) / (SpikesImage.Width * Zoom) * (Spikes.Length - 1));
+        private int ScreenCoordinatesToPixel(double x) => (int)Math.Round((x - Padding.Left) / (LoadSpikesViewModel.ImageWidth * Zoom) * (Spikes.Length - 1));
         private static T? FindClosestPoint<T>(IEnumerable<T> possiblePoints, Func<T, double> getDistance, double maxDistance)
         {
             return possiblePoints.Select(x => (value: x, distance: getDistance(x)))
@@ -566,7 +574,7 @@ namespace SpikeFinder.Controls
         }
         private CursorPosition? CursorToDrag(Point mousePosition)
         {
-            if (Cursors is null || SpikesImage is null || Spikes is null)
+            if (Cursors is null || Geometries is null || Spikes is null)
                 return null;
 
             return FindClosestPoint(Cursors.Where(x => x.X is not null), x => (PixelToScreenCoordinates(x.X!.Value) - mousePosition).LengthSquared, CursorStartDragWithin * CursorStartDragWithin);
