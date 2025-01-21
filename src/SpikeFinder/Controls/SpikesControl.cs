@@ -423,7 +423,7 @@ namespace SpikeFinder.Controls
             drawingContext.PushClip(_clip);
 
             drawingContext.DrawGeometry(Brushes.Transparent, null, _clip);
-            Geometries.ForEach(x => drawingContext.DrawGeometry(null, new Pen(Brushes.Black, 1), x));
+            Geometries.ForEach(x => drawingContext.DrawGeometry(null, new Pen(Brushes.Black, 0.75 / Zoom), x));
 
             drawingContext.Pop();
             drawingContext.Pop();

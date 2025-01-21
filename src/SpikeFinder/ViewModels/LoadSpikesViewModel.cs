@@ -9,6 +9,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reactive;
@@ -182,7 +183,7 @@ namespace SpikeFinder.ViewModels
                 d(mergeSpikes
                     .ObserveOn(RxApp.MainThreadScheduler)
                     .Select(x => (x.Spikes.MaxValue, x.Spikes.Spikes, X: new Func<int, double>(y => y * Convert.ToDouble(ImageWidth) / x.Spikes.Spikes.Length), Y: new Func<double, double>(y => ImageHeight - y / x.Spikes.MaxValue * ImageHeight)))
-                    .Select(x => (x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 1000).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 1000, Math.Min(1000, x.Spikes.Length - i * 1000)).Select(i => $"{x.X(i)},{x.Y(x.Spikes[i])}"))))).ToArray()))
+                    .Select(x => (x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 500).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 500, Math.Min(501, x.Spikes.Length - i * 500 + 1)).Select(i => string.Format(CultureInfo.InvariantCulture, "{0},{1}", x.X(i), x.Y(x.Spikes[i]))))))).ToArray()))
                     .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered.Spikes, rendered.MaxValue, rendered.Geometries, cursors))
                     .Cast<IRoutableViewModel>()
                     .ObserveOn(RxApp.MainThreadScheduler)
