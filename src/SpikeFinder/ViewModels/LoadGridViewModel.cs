@@ -4,20 +4,15 @@ using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
-using SpikeFinder.RefractiveIndices;
-using SpikeFinder.Settings;
 using SpikeFinder.SQLite;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Data.Common;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace SpikeFinder.ViewModels
 {
@@ -28,24 +23,10 @@ namespace SpikeFinder.ViewModels
         [Reactive] private bool IsAggregatingData { get; set; }
 
 
-        private LoadingItemViewModel? _loadExamCountProgress, _loadBiometryValuesProgress, _loadDemographicsProgress, _loadMeasureModesAndWavelengthsProgress, _loadK1Progress, _loadK2Progress, _loadAxis1Progress, _loadWtwProgress, _loadIcxProgress, _loadIcyProgress, _loadPdProgress, _loadPcxProgress, _loadPcyProgress, _loadPersistedSpikes, _aggregateDataProgress;
+        private readonly LoadingItemViewModel _loadExamCountProgress, _loadBiometryValuesProgress, _loadDemographicsProgress, _loadMeasureModesAndWavelengthsProgress, _loadK1Progress, _loadK2Progress, _loadAxis1Progress, _loadWtwProgress, _loadIcxProgress, _loadIcyProgress, _loadPdProgress, _loadPcxProgress, _loadPcyProgress, _loadPersistedSpikes, _aggregateDataProgress;
         private Action<IDisposable>? _disposeDescription;
 
         public LoadGridViewModel()
-        {
-            this.WhenActivated(d =>
-            {
-                TotalExams = null;
-
-                d(CreateSettingsCommand());
-
-                d(InitializeLoadingItems());
-
-                d(FetchData());
-            });
-        }
-
-        private IDisposable InitializeLoadingItems()
         {
             var items = new[]
             {
@@ -66,7 +47,21 @@ namespace SpikeFinder.ViewModels
                 _aggregateDataProgress = new(15, "Aggregating data…"),
             };
 
-            CompositeDisposable disposables = new(items.Except(new[] { _loadPersistedSpikes }).Select(x => x.Initialize(this.WhenAnyValue(y => y.TotalExams))));
+            this.WhenActivated(d =>
+            {
+                TotalExams = null;
+
+                d(CreateSettingsCommand());
+
+                d(InitializeLoadingItems(items));
+
+                d(FetchData());
+            });
+        }
+
+        private IDisposable InitializeLoadingItems(LoadingItemViewModel[] items)
+        {
+            CompositeDisposable disposables = new(items.Except([_loadPersistedSpikes]).Select(x => x.Initialize(this.WhenAnyValue(y => y.TotalExams))));
             _disposeDescription = d => d.DisposeWith(disposables);
 
             var sourceList = new SourceList<LoadingItemViewModel>().DisposeWith(disposables);
@@ -103,24 +98,22 @@ namespace SpikeFinder.ViewModels
         }
 
         private IObservable<List<LenstarExam>> LoadLenstarExams(IScheduler scheduler) =>
-            Observable.StartAsync(GetVersion, scheduler).SelectMany(CountExams).ObserveOn(RxApp.MainThreadScheduler).Do(x => TotalExams = x.totalExams)
+            GetVersion().SelectMany(CountExams).ObserveOn(RxApp.MainThreadScheduler).Do(x => TotalExams = x.totalExams)
             .Select(x =>
                 Observable.Zip(
-                    Observable.StartAsync(token => LoadBiometryMeasurements(_loadBiometryValuesProgress, token), scheduler),
-                    Observable.StartAsync(token => LoadMeasureModesAndWavelengths(_loadMeasureModesAndWavelengthsProgress, token), scheduler),
-                    Observable.StartAsync(token => LoadExamDemographics(x.version, _loadDemographicsProgress, token), scheduler),
+                    LoadBiometryMeasurements(_loadBiometryValuesProgress),
+                    LoadMeasureModesAndWavelengths(_loadMeasureModesAndWavelengthsProgress),
+                    LoadExamDemographics(_loadDemographicsProgress, x.version),
 
-                    Observable.StartAsync(token => LoadKeratometry(_loadK1Progress, KsValue.FlatK, token), scheduler),
-                    Observable.StartAsync(token => LoadKeratometry(_loadK2Progress, KsValue.SteepK, token), scheduler),
-                    Observable.StartAsync(token => LoadAxis1s(_loadAxis1Progress, token), scheduler),
-
-                    Observable.StartAsync(token => LoadWtwValue(_loadWtwProgress, WtwValue.WTW, token), scheduler),
-                    Observable.StartAsync(token => LoadWtwValue(_loadIcxProgress, WtwValue.ICX, token), scheduler),
-                    Observable.StartAsync(token => LoadWtwValue(_loadIcyProgress, WtwValue.ICY, token), scheduler),
-
-                    Observable.StartAsync(token => LoadPupilValue(_loadPdProgress, PupilValue.PD, token), scheduler),
-                    Observable.StartAsync(token => LoadPupilValue(_loadPcxProgress, PupilValue.PCX, token), scheduler),
-                    Observable.StartAsync(token => LoadPupilValue(_loadPcyProgress, PupilValue.PCY, token), scheduler),
+                    LoadKeratometry(_loadK1Progress, KsValue.FlatK),
+                    LoadKeratometry(_loadK2Progress, KsValue.SteepK),
+                    LoadAxis1s(_loadAxis1Progress),
+                    LoadWtwValue(_loadWtwProgress, WtwValue.WTW),
+                    LoadWtwValue(_loadIcxProgress, WtwValue.ICX),
+                    LoadWtwValue(_loadIcyProgress, WtwValue.ICY),
+                    LoadPupilValue(_loadPdProgress, PupilValue.PD),
+                    LoadPupilValue(_loadPcxProgress, PupilValue.PCX),
+                    LoadPupilValue(_loadPcyProgress, PupilValue.PCY),
 
                     Observable.StartAsync(token => SQLiteDatabase.LoadPersistedSpikes(_loadPersistedSpikes!, _disposeDescription!, token), scheduler),
 
@@ -132,155 +125,73 @@ namespace SpikeFinder.ViewModels
             .SubscribeOn(scheduler);
 
 
-        private static Task<Queue<T>> LoadValues<T>(LoadingItemViewModel? progress, Func<T, int> getExamId, Func<DbDataReader, T> readValue, string query, CancellationToken token)
-        {
-            if (progress == null)
-            {
-                return Task.FromResult(new Queue<T>());
-            }
-            else
-            {
-                int? lastId = null;
-                var answers = new Queue<T>();
+        private static IObservable<Queue<SingleValueMeasurement>> LoadSingleValues(LoadingItemViewModel progress, string query) =>
+            LoadWithProgress(progress, MySqlExtensions.Select(query, [], reader => new SingleValueMeasurement(reader.GetInt32(0), (Eye)reader.GetByte(1), ValueWithStandardDeviation.FromValues(reader.GetDouble(2), reader.IsDBNull(3) ? new double?() : reader.GetDouble(3)))));
 
-                return MySqlExtensions.RunSqlQuery(query, async reader =>
+        private static IObservable<int> GetVersion() =>
+            MySqlExtensions.Select("SELECT COUNT(TABLE_NAME) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tbl_basic_visit';", [], reader => reader.GetInt32(0));
+        private static IObservable<(long totalExams, int version)> CountExams(int version) =>
+            MySqlExtensions.Select($"SELECT COUNT(*) FROM tbl_basic_patient pat {(version == 1 ? "JOIN tbl_basic_visit vis ON vis.fk_patient = pat.pk_patient JOIN tbl_basic_examination ex ON vis.pk_visit = ex.fk_visit" : "JOIN tbl_basic_examination ex ON pat.pk_patient = ex.fk_patid")} WHERE ex.category = 1030;",
+                [], r => (r.GetInt64(0), version));
+
+        private static IObservable<Queue<T>> LoadWithProgress<T>(LoadingItemViewModel progress, IObservable<T> source)
+            where T : class, IHasExamId =>
+            source
+                .Prepend(null)
+                .DistinctUntilChanged()
+                .Scan((prev, next) =>
                 {
-                    while (await reader.ReadAsync(token))
-                    {
-                        T next;
+                    // Only the very first result will be null.
+                    if (prev?.ExamId != next!.ExamId)
+                        progress.ActualProgress++;
 
-                        try
-                        {
-                            next = readValue(reader);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new Exception($"Encountered exception while parsing results for the the following query:{Environment.NewLine}{Environment.NewLine}{query}", ex);
-                        }
+                    return next;
+                })
+                .WhereNotNull()
+                .Aggregate(new Queue<T>(), (queue, next) =>
+                {
+                    queue.Enqueue(next);
+                    return queue;
+                })
+                .Finally(() => progress.SlowlyUpdatingProgress = progress.ActualProgress = progress.MaxPossibleProgress ?? 1);
 
-                        var nextId = getExamId(next);
-
-                        if (nextId != lastId)
-                        {
-                            lastId = nextId;
-                            progress.ActualProgress++;
-                        }
-
-                        answers.Enqueue(next);
-                    }
-
-                    progress.SlowlyUpdatingProgress = progress.ActualProgress = progress.MaxPossibleProgress ?? 1;
-                }, () => answers, token);
-            }
-        }
-        private static Task<Queue<SingleValueMeasurement>> LoadSingleValues(LoadingItemViewModel? progress, string query, CancellationToken token)
-        {
-            return LoadValues(progress, x => x.ExamId, reader => new SingleValueMeasurement(reader.GetInt32(0), (Eye)reader.GetByte(1), ValueWithStandardDeviation.FromValues(reader.GetDouble(2), reader.IsDBNull(3) ? new double?() : reader.GetDouble(3))), query, token);
-        }
-
-        private static async Task<int> GetVersion(CancellationToken token)
-        {
-            bool hasRows = false;
-
-            return await MySqlExtensions.RunSqlQuery("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tbl_basic_visit';", async reader => hasRows = await reader.ReadAsync(token), () => hasRows, token) ? 1 : 0;
-        }
-        private async static Task<(long totalExams, int version)> CountExams(int version, CancellationToken token)
-        {
-            long totalExams = 0;
-
-            return (await MySqlExtensions.RunSqlQuery($"SELECT COUNT(*) FROM tbl_basic_patient pat {(version == 1 ? "JOIN tbl_basic_visit vis ON vis.fk_patient = pat.pk_patient JOIN tbl_basic_examination ex ON vis.pk_visit = ex.fk_visit" : "JOIN tbl_basic_examination ex ON pat.pk_patient = ex.fk_patid")} WHERE ex.category = 1030;", async reader =>
-            {
-                if (!await reader.ReadAsync(token))
-                    throw new Exception("Failed to count the total exams.");
-
-                totalExams = reader.GetInt64(0);
-            }, () => totalExams, token), version);
-        }
-        private static Task<Queue<BiometryMeasurements>> LoadBiometryMeasurements(LoadingItemViewModel? loadBiometryValues, CancellationToken token)
-        {
-            if (loadBiometryValues == null)
-            {
-                return Task.FromResult(new Queue<BiometryMeasurements>());
-            }
-            else
-            {
-                var isAirRIs = SfMachineSettings.Instance.RefractiveIndexMethod == RefractiveIndexMethods.Air;
-                var lenstarRIs = RefractiveIndexMethod.GetRefractiveIndexMethod(RefractiveIndexMethods.Lenstar);
-
-                var biometryMeasurements = new Queue<BiometryMeasurements>();
-                return MySqlExtensions.RunSqlQuery($@"SELECT meas.fk_examid, meas.eye, dimen.element, AVG(dimen.dimension * 1000), STDDEV_SAMP(dimen.dimension * 1000){(isAirRIs ? ", biom.meas_mode, status.sld_wavelength * 1E9" : null)}
+        private static IObservable<Queue<BiometryMeasurements>> LoadBiometryMeasurements(LoadingItemViewModel loadBiometryValues) =>
+            LoadWithProgress(loadBiometryValues, MySqlExtensions.Select($@"SELECT meas.fk_examid, meas.eye, dimen.element, AVG(dimen.dimension * 1000), STDDEV_SAMP(dimen.dimension * 1000)
 FROM tbl_bio_measurement meas
 JOIN tbl_bio_biometry_dimensions dimen ON meas.pk_measurement = dimen.fk_measurement
-{(isAirRIs ? @"JOIN tbl_bio_biometry biom ON meas.pk_measurement = biom.fk_measurement
-LEFT JOIN tbl_bio_biometry_setting_status status ON biom.fk_biometry_setting_status = status.pk_biometry_setting_status
-" : null)}WHERE dimen.used = 1 AND dimen.dimension >= -1
+WHERE dimen.used = 1 AND dimen.dimension >= -1
 GROUP BY meas.fk_examid, meas.eye, dimen.element
-ORDER BY meas.fk_examid, meas.eye, dimen.element;", async reader =>
+ORDER BY meas.fk_examid, meas.eye, dimen.element;", [], async (r, ct) => (r.GetInt32(0), (Eye)r.GetByte(1), (Dimension)r.GetByte(2), r.GetDouble(3), await r.IsDBNullAsync(4, ct) ? default(double?) : r.GetDouble(4)))
+                .Scan((BiometryMeasurements?)null, (current, next) =>
                 {
-                    BiometryMeasurements? currentMeasurement = null;
+                    var (examId, eye, dimension, thickness, stdev) = next;
 
-                    void AddCurrentMeasurement()
+                    if (current?.ExamId != examId || current?.Eye != eye)
                     {
-                        if (currentMeasurement != null)
-                        {
-                            biometryMeasurements.Enqueue(currentMeasurement);
-                        }
+                        current = new BiometryMeasurements { ExamId = examId, Eye = eye };
                     }
 
-                    while (await reader.ReadAsync(token))
-                    {
-                        var examId = reader.GetInt32(0);
-                        var eye = (Eye)reader.GetByte(1);
+                    current[dimension] = ValueWithStandardDeviation.FromValues(thickness, stdev);
 
-                        if (currentMeasurement?.ExamId != examId)
-                        {
-                            loadBiometryValues.ActualProgress++;
-                        }
-
-                        if (currentMeasurement?.ExamId != examId || currentMeasurement?.Eye != eye)
-                        {
-                            AddCurrentMeasurement();
-                            currentMeasurement = new BiometryMeasurements { ExamId = examId, Eye = eye };
-                        }
-
-                        var dimension = (Dimension)reader.GetByte(2);
-
-                        if (isAirRIs)
-                        {
-                            var wavelength = reader.GetDouble(6);
-                            var ri = lenstarRIs.RefractiveIndex(dimension, (MeasureMode)reader.GetByte(5), wavelength);
-                            currentMeasurement[dimension] = ValueWithStandardDeviation.FromValues(reader.GetDouble(3) * ri, await reader.IsDBNullAsync(4, token) ? new double?() : reader.GetDouble(4) * ri);
-                        }
-                        else
-                        {
-                            currentMeasurement[dimension] = ValueWithStandardDeviation.FromValues(reader.GetDouble(3), await reader.IsDBNullAsync(4, token) ? new double?() : reader.GetDouble(4));
-                        }
-                    }
-
-                    AddCurrentMeasurement();
-                    loadBiometryValues.SlowlyUpdatingProgress = loadBiometryValues.ActualProgress = loadBiometryValues.MaxPossibleProgress ?? 1;
-                }, () => biometryMeasurements, token);
-            }
-        }
-        private static Task<Queue<MeasureModeAndWavelength>> LoadMeasureModesAndWavelengths(LoadingItemViewModel? loadDemographics, CancellationToken token)
-        {
-            return LoadValues(loadDemographics, x => x.ExamId, reader => new MeasureModeAndWavelength(reader.GetInt32(0), (Eye)reader.GetByte(1), (MeasureMode)reader.GetByte(2), reader.GetDouble(3)), @"SELECT meas.fk_examid, meas.eye, biom.meas_mode, setting.sld_wavelength * 1000000000 sld_wavelength
+                    return current;
+                })
+                .WhereNotNull());
+        private static IObservable<Queue<MeasureModeAndWavelength>> LoadMeasureModesAndWavelengths(LoadingItemViewModel loadDemographics) =>
+            LoadWithProgress(loadDemographics, MySqlExtensions.Select(@"SELECT meas.fk_examid, meas.eye, biom.meas_mode, setting.sld_wavelength * 1000000000 sld_wavelength
 FROM tbl_bio_measurement meas
 LEFT JOIN tbl_bio_biometry biom ON meas.pk_measurement = biom.fk_measurement
 LEFT JOIN tbl_bio_biometry_setting_status setting ON biom.fk_biometry_setting_status = setting.pk_biometry_setting_status
 WHERE biom.meas_mode IS NOT NULL
 GROUP BY meas.fk_examid, meas.eye
-ORDER BY meas.fk_examid, meas.eye;", token);
-        }
-        private static Task<Queue<ExamDemographics>> LoadExamDemographics(int version, LoadingItemViewModel? loadDemographics, CancellationToken token)
-        {
-            return LoadValues(loadDemographics, x => x.ExamId, reader => new ExamDemographics(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetDateTime(3), reader.GetDateTime(4), reader.GetGuid(5), reader.GetInt32(6)), $@"SELECT patient.patientid, patient.name, patient.firstname, patient.birthdate, exam.timestamp, exam.uuid, exam.pk_examination
+ORDER BY meas.fk_examid, meas.eye;", [], r => new MeasureModeAndWavelength(r.GetInt32(0), (Eye)r.GetByte(1), (MeasureMode)r.GetByte(2), r.GetDouble(3))));
+
+        private static IObservable<Queue<ExamDemographics>> LoadExamDemographics(LoadingItemViewModel loadDemographics, int version) =>
+            LoadWithProgress(loadDemographics, MySqlExtensions.Select($@"SELECT patient.patientid, patient.name, patient.firstname, patient.birthdate, exam.timestamp, exam.uuid, exam.pk_examination
 FROM tbl_basic_patient patient
 {(version == 1 ? "JOIN tbl_basic_visit vis ON vis.fk_patient = patient.pk_patient JOIN tbl_basic_examination exam ON vis.pk_visit = exam.fk_visit" : "JOIN tbl_basic_examination exam ON patient.pk_patient = exam.fk_patid")}
 WHERE exam.category = 1030
-ORDER BY exam.pk_examination;", token);
-        }
-        private static Task<Queue<SingleValueMeasurement>> LoadKeratometry(LoadingItemViewModel? progress, KsValue ksValue, CancellationToken token)
+ORDER BY exam.pk_examination;", [], reader => new ExamDemographics(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetDateTime(3), reader.GetDateTime(4), reader.GetGuid(5), reader.GetInt32(6))));
+        private static IObservable<Queue<SingleValueMeasurement>> LoadKeratometry(LoadingItemViewModel progress, KsValue ksValue)
         {
             var value = ksValue switch { KsValue.FlatK => "inner_radius_flat", KsValue.SteepK => "inner_radius_steep", _ => throw new ArgumentException(null, nameof(ksValue)) };
             var mask = ksValue switch { KsValue.FlatK => 1, KsValue.SteepK => 2, _ => throw new ArgumentException(null, nameof(ksValue)) };
@@ -291,24 +202,16 @@ ORDER BY exam.pk_examination;", token);
     LEFT JOIN tbl_bio_keratometry_settings setting ON kera.fk_keratometry_settings = setting.pk_keratometry_settings
     WHERE kera.used & {mask} = {mask}
     GROUP BY meas.fk_examid, meas.eye
-    ORDER BY meas.fk_examid, meas.eye;", token);
+    ORDER BY meas.fk_examid, meas.eye;");
         }
-        private static Task<Queue<SingleValueMeasurement>> LoadAxis1s(LoadingItemViewModel? loadAxis1, CancellationToken token)
-        {
-            return LoadValues(loadAxis1, x => x.ExamId, reader =>
-            {
-                var angle = ValueWithStandardDeviation.FromValues(reader.GetDouble(2), reader.IsDBNull(3) ? new double?() : reader.GetDouble(3));
-                var angleOffset60 = ValueWithStandardDeviation.FromValues(reader.GetDouble(4), reader.IsDBNull(5) ? new double?() : reader.GetDouble(5));
-                var angleOffset120 = ValueWithStandardDeviation.FromValues(reader.GetDouble(6), reader.IsDBNull(7) ? new double?() : reader.GetDouble(7));
-
-                return new SingleValueMeasurement(reader.GetInt32(0), (Eye)reader.GetByte(1), angle.StandardDeviation <= angleOffset60.StandardDeviation && angle.StandardDeviation <= angleOffset120.StandardDeviation ? angle : (angleOffset60.StandardDeviation <= angleOffset120.StandardDeviation ? angleOffset60 : angleOffset120));
-            }, @"SELECT meas.fk_examid, meas.eye, AVG(kera.inner_angle), stddev_samp(kera.inner_angle), (AVG((kera.inner_angle+60)%180)+120)%180, stddev_samp((kera.inner_angle+60)%180), (AVG((kera.inner_angle+120)%180)+60)%180, stddev_samp((kera.inner_angle+120)%180)
+        private static IObservable<Queue<SingleValueMeasurement>> LoadAxis1s(LoadingItemViewModel loadAxis1) =>
+            LoadWithProgress(loadAxis1, MySqlExtensions.Select(@"SELECT meas.fk_examid, meas.eye, AVG(kera.inner_angle), stddev_samp(kera.inner_angle), (AVG((kera.inner_angle+60)%180)+120)%180, stddev_samp((kera.inner_angle+60)%180), (AVG((kera.inner_angle+120)%180)+60)%180, stddev_samp((kera.inner_angle+120)%180)
 FROM tbl_bio_measurement meas
 LEFT JOIN tbl_bio_keratometry kera ON meas.pk_measurement = kera.fk_measurement
 WHERE kera.used & 4 = 4 AND kera.inner_angle >= -1
-GROUP BY meas.fk_examid, meas.eye;", token);
-        }
-        private static Task<Queue<SingleValueMeasurement>> LoadWtwValue(LoadingItemViewModel? progress, WtwValue wtwValue, CancellationToken token)
+GROUP BY meas.fk_examid, meas.eye;", [], async (r, ct) => (examId: r.GetInt32(0), eye: (Eye)r.GetByte(1), a1: r.GetDouble(2), sd1: await r.IsDBNullAsync(3, ct) ? default(double?) : r.GetDouble(3), a2: r.GetDouble(4), sd2: await r.IsDBNullAsync(5, ct) ? default(double?) : r.GetDouble(5), a3: r.GetDouble(6), sd3: await r.IsDBNullAsync(7, ct) ? default(double?) : r.GetDouble(7)))
+                .Select(x => new SingleValueMeasurement(x.examId, x.eye, x.sd1 <= x.sd2 && x.sd1 <= x.sd3 ? new(x.a1, x.sd1) : x.sd2 <= x.sd3 ? new(x.a2, x.sd2) : new(x.a3, x.sd3))));
+        private static IObservable<Queue<SingleValueMeasurement>> LoadWtwValue(LoadingItemViewModel progress, WtwValue wtwValue)
         {
             var multiplier = wtwValue switch { WtwValue.WTW => 2000, _ => 1000 };
             var value = wtwValue switch { WtwValue.WTW => "iris_radius", WtwValue.ICX => "iris_center_x", WtwValue.ICY => "iris_center_y", _ => throw new ArgumentException(null, nameof(wtwValue)) };
@@ -319,9 +222,9 @@ FROM tbl_bio_measurement meas
 LEFT JOIN tbl_bio_whitewhite wtw ON meas.pk_measurement = wtw.fk_measurement
 WHERE wtw.used & {mask} = {mask} AND wtw.{value} >= -1
 GROUP BY meas.fk_examid, meas.eye
-ORDER BY meas.fk_examid, meas.eye;", token);
+ORDER BY meas.fk_examid, meas.eye;");
         }
-        private static Task<Queue<SingleValueMeasurement>> LoadPupilValue(LoadingItemViewModel? progress, PupilValue pupilValue, CancellationToken token)
+        private static IObservable<Queue<SingleValueMeasurement>> LoadPupilValue(LoadingItemViewModel progress, PupilValue pupilValue)
         {
             var multiplier = pupilValue switch { PupilValue.PD => 2000, _ => 1000 };
             var value = pupilValue switch { PupilValue.PD => "pupil_radius", PupilValue.PCX => "pupil_center_x", PupilValue.PCY => "pupil_center_y", _ => throw new ArgumentException(null, nameof(pupilValue)) };
@@ -332,7 +235,7 @@ FROM tbl_bio_measurement meas
 LEFT JOIN tbl_bio_pupilometry pd ON meas.pk_measurement = pd.fk_measurement
 WHERE pd.used & {mask} = {mask} AND pd.{value} >= -1
 GROUP BY meas.fk_examid, meas.eye
-ORDER BY meas.fk_examid, meas.eye;", token);
+ORDER BY meas.fk_examid, meas.eye;");
         }
 
         private List<LenstarExam> AggregateLenstarExamData(Queue<ExamDemographics> demographics, Queue<BiometryMeasurements> biometryMeasurements, Queue<MeasureModeAndWavelength> measureModesAndWavelengths, Queue<SingleValueMeasurement> k1s, Queue<SingleValueMeasurement> k2s, Queue<SingleValueMeasurement> kAngles, Queue<SingleValueMeasurement> wtws, Queue<SingleValueMeasurement> icxs, Queue<SingleValueMeasurement> icys, Queue<SingleValueMeasurement> pds, Queue<SingleValueMeasurement> pcxs, Queue<SingleValueMeasurement> pcys, Dictionary<string, PersistedSpikes> spikes)
@@ -439,14 +342,17 @@ ORDER BY meas.fk_examid, meas.eye;", token);
         public override string Title => "Loading Data…";
 
 
-        private interface ILenstarExamPart
+        private interface IHasExamId
         {
             int ExamId { get; }
+        }
+        private interface ILenstarExamPart : IHasExamId
+        {
             Eye Eye { get; }
         }
         private record SingleValueMeasurement(int ExamId, Eye Eye, ValueWithStandardDeviation Value) : ILenstarExamPart;
         private record MeasureModeAndWavelength(int ExamId, Eye Eye, MeasureMode MeasureMode, double Wavelength) : ILenstarExamPart;
-        private record ExamDemographics(string PatientNumber, string LastName, string FirstName, DateTime DOB, DateTime Timestamp, Guid Uuid, int ExamId)
+        private record ExamDemographics(string PatientNumber, string LastName, string FirstName, DateTime DOB, DateTime Timestamp, Guid Uuid, int ExamId) : IHasExamId
         {
             public string GetExamKey(Eye eye) => LenstarExam.ComputeKey(Uuid, eye);
             public bool IsMatch(ILenstarExamPart examPart)

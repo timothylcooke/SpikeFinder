@@ -1,5 +1,4 @@
 ﻿using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
-using MySqlConnector;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Extensions;
@@ -18,9 +17,7 @@ using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace SpikeFinder.ViewModels
 {
@@ -93,11 +90,11 @@ namespace SpikeFinder.ViewModels
 
                 if (exam.PersistedSpikes == null)
                 {
-                    var readCursors = ReadCursors(exam, RxApp.TaskpoolScheduler).Replay();
+                    var readCursors = ReadCursors(exam).Replay();
 
-                    var readDimensions = ReadDimensions(exam, RxApp.TaskpoolScheduler).Replay();
+                    var readDimensions = ReadDimensions(exam).Replay();
 
-                    var readBiometry = ReadBiometryData(exam, RxApp.TaskpoolScheduler).Replay();
+                    var readBiometry = ReadBiometryData(exam).Replay();
 
                     // These are already sorted by MeasurementId.
                     // The zip will implicitly be a Join on MeasurementId.
@@ -224,41 +221,17 @@ namespace SpikeFinder.ViewModels
             return cursors.SingleOrDefault(x => x.Cursor == element)?.ScanPos is { } position ? (int)Math.Round(position) : new int?();
         }
 
-        private static Action<MySqlCommand> AddSqlParameters(LenstarExam exam) => cmd =>
-        {
-            cmd.Parameters.AddWithValue("@ExamId", exam.ExamId);
-            cmd.Parameters.AddWithValue("@Eye", (byte)exam.Eye);
-        };
-
         private static IObservable<(long? Measurements, long? TotalScans, string? , int version)> CountTotalScans(LenstarExam exam, IScheduler scheduler)
         {
             IObservable<(long?, long?, string?, int)> CountTable(string ascanTable, int version) =>
-                MySqlExtensions.Connect<(long?, long?, string?, int)>(async (cmd, obs) =>
-            {
-                cmd.CommandText = $@"SELECT COUNT(measurements.pk_measurement) TotalMeasurements, IFNULL(SUM(n), 0) TotalAscans, MAX(uuid) uuid FROM (
+                MySqlExtensions.Select<(long?, long?, string?, int)>($@"SELECT COUNT(measurements.pk_measurement) TotalMeasurements, IFNULL(SUM(n), 0) TotalAscans, MAX(uuid) uuid FROM (
     SELECT exam.uuid, meas.pk_measurement, COUNT(ascan.used) n
     FROM tbl_basic_examination exam
     JOIN tbl_bio_measurement meas ON meas.fk_examid = exam.pk_examination
     LEFT JOIN {ascanTable} ascan ON ascan.fk_measurement = meas.pk_measurement AND ascan.used = 1
     WHERE exam.pk_examination = @ExamId AND meas.eye = @Eye
     GROUP BY meas.pk_measurement
-) measurements;";
-
-                cmd.Parameters.AddWithValue("ExamId", exam.ExamId);
-                cmd.Parameters.AddWithValue("Eye", (byte)exam.Eye);
-
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    if (await reader.ReadAsync())
-                    {
-                        obs.OnNext((reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), version));
-                    }
-                    else
-                    {
-                        obs.OnError(new Exception("Failed to count exams."));
-                    }
-                }
-            });
+) measurements;", [("ExamId", exam.ExamId), ("Eye", (byte)exam.Eye)], reader => (reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), version));
 
             return CountTable("tbl_bio_ascan", 0)
                 .SelectMany(x => x switch {
@@ -341,48 +314,35 @@ namespace SpikeFinder.ViewModels
                     0 => Observable.Return((x.version, blobMap: (BlobMap?)null)),
                     _ => BlobMap.FromExamId(x.examid!).Select(blobMap => (x.version, blobMap))
                 })
-                .SelectMany(x => MySqlExtensions.Connect<CompressedSpikes>(async (cmd, obs) =>
-                {
-                    cmd.CommandText = $@"SELECT ascan.fk_measurement, ascan.idx, ascan.scan_length{(x.version == 0 ? ", ascan.scandata" : null)}
+                .SelectMany(x => MySqlExtensions.Select($@"SELECT ascan.fk_measurement, ascan.idx, ascan.scan_length{(x.version == 0 ? ", ascan.scandata" : null)}
     FROM tbl_bio_measurement meas
     JOIN {(x.version == 0 ? "tbl_bio_ascan" : "tbl_bio_ascan2")} ascan ON ascan.fk_measurement = meas.pk_measurement
     WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye AND ascan.used = 1
-    ORDER BY ascan.fk_measurement, ascan.idx;";
+    ORDER BY ascan.fk_measurement, ascan.idx;", [("ExamId", exam.ExamId), ("Eye", (byte)exam.Eye)], reader => new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetInt32(2), x.version == 0 ? (byte[])reader[3] : x.blobMap!.GetBlob($"{reader.GetInt32(0)}-a-{reader.GetByte(1)}"))));
 
-                    cmd.Parameters.AddWithValue("ExamId", exam.ExamId);
-                    cmd.Parameters.AddWithValue("Eye", (byte)exam.Eye);
-
-                    using (var reader = await cmd.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            obs.OnNext(new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetInt32(2), x.version == 0 ? (byte[])reader[3] : x.blobMap!.GetBlob($"{reader.GetInt32(0)}-a-{reader.GetByte(1)}")));
-                        }
-                    }
-                }));
-        private static IObservable<CursorMarker> ReadCursors(LenstarExam exam, IScheduler scheduler)
+        private static IObservable<CursorMarker> ReadCursors(LenstarExam exam)
         {
-            return MySqlExtensions.RunSqlQuery<CursorMarker>(@"SELECT meas.pk_measurement, curs.cursor_elem, curs.scan_pos, curs.value
+            return MySqlExtensions.Select(@"SELECT meas.pk_measurement, curs.cursor_elem, curs.scan_pos, curs.value
 FROM tbl_bio_biometry_cursors curs
 JOIN tbl_bio_measurement meas ON curs.fk_measurement = meas.pk_measurement
 WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye
-ORDER BY meas.pk_measurement, curs.cursor_elem;", (reader, observer) => observer.OnNext(new CursorMarker(reader.GetInt32(0), (CursorElement)reader.GetByte(1), reader.GetFloat(2), reader.GetFloat(3))), AddSqlParameters(exam), scheduler);
+ORDER BY meas.pk_measurement, curs.cursor_elem;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.Eye)], r => new CursorMarker(r.GetInt32(0), (CursorElement)r.GetByte(1), r.GetFloat(2), r.GetFloat(3)));
         }
-        private static IObservable<SegmentLength> ReadDimensions(LenstarExam exam, IScheduler scheduler)
+        private static IObservable<SegmentLength> ReadDimensions(LenstarExam exam)
         {
-            return MySqlExtensions.RunSqlQuery<SegmentLength>(@"SELECT meas.pk_measurement, dimen.element, dimen.dimension, dimen.used
+            return MySqlExtensions.Select(@"SELECT meas.pk_measurement, dimen.element, dimen.dimension, dimen.used
 FROM tbl_bio_biometry_dimensions dimen
 JOIN tbl_bio_measurement meas ON dimen.fk_measurement = meas.pk_measurement
 WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye
-ORDER BY meas.pk_measurement, dimen.element;", (reader, observer) => observer.OnNext(new SegmentLength(reader.GetInt32(0), (Dimension)reader.GetByte(1), reader.GetFloat(2), reader.GetBoolean(3))), AddSqlParameters(exam), scheduler);
+ORDER BY meas.pk_measurement, dimen.element;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.Eye)], reader => new SegmentLength(reader.GetInt32(0), (Dimension)reader.GetByte(1), reader.GetFloat(2), reader.GetBoolean(3)));
         }
-        private static IObservable<BiometryData> ReadBiometryData(LenstarExam exam, IScheduler scheduler)
+        private static IObservable<BiometryData> ReadBiometryData(LenstarExam exam)
         {
-            return MySqlExtensions.RunSqlQuery<BiometryData>(@"SELECT meas.pk_measurement, biom.algorithm
+            return MySqlExtensions.Select(@"SELECT meas.pk_measurement, biom.algorithm
 FROM tbl_bio_measurement meas
 JOIN tbl_bio_biometry biom ON meas.pk_measurement = biom.fk_measurement
 WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye
-ORDER BY meas.pk_measurement;", (reader, observer) => observer.OnNext(new BiometryData(reader.GetInt32(0), (Algorithm)reader.GetByte(1))), AddSqlParameters(exam), scheduler);
+ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.Eye)], r => new BiometryData(r.GetInt32(0), (Algorithm)r.GetByte(1)));
         }
 
         private static float[] SumDecompressedScans(float[] spike1, float[] spike2)

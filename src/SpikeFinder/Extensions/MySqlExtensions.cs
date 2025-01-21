@@ -2,10 +2,10 @@
 using MySqlConnector;
 using SpikeFinder.Settings;
 using System;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Security.Cryptography;
@@ -17,9 +17,10 @@ namespace SpikeFinder.Extensions
 {
     public static class MySqlExtensions
     {
-        public static IObservable<T> Connect<T>(Func<MySqlCommand, IObserver<T>, Task> runQuery)
-        {
-            return Observable.Create<T>(async (obs, token) =>
+        public static IObservable<T> Select<T>(string query, IEnumerable<(string paramName, object value)> parameters, Func<DbDataReader, T> read) =>
+            Select(query, parameters, (reader, _) => Task.FromResult(read(reader)));
+        public static IObservable<T> Select<T>(string query, IEnumerable<(string paramName, object value)> parameters, Func<DbDataReader, CancellationToken, Task<T>> read) =>
+            Observable.Create<T>(async (obs, token) =>
             {
                 await using var mysql = new MySqlConnection(SfMachineSettings.Instance.ConnectionString!.Unprotect());
                 await mysql.OpenAsync(token);
@@ -29,57 +30,36 @@ namespace SpikeFinder.Extensions
                 cmd.CommandText = "set net_write_timeout=99999;set net_read_timeout=99999;";
                 await cmd.ExecuteNonQueryAsync(token);
 
-                await runQuery(cmd, obs);
-
-                obs.OnCompleted();
-            });
-        }
-
-        [Obsolete]
-        public static Task<T> RunSqlQuery<T>(string query, Func<DbDataReader, Task> readResults, Func<T> accumulateResult, CancellationToken token, Action<MySqlCommand>? addParameters = null) => Task.Run(async () =>
-        {
-            await using var mysql = new MySqlConnection(SfMachineSettings.Instance.ConnectionString!.Unprotect());
-            await mysql.OpenAsync(token);
-
-            await using var cmd = mysql.CreateCommand();
-
-            cmd.CommandTimeout = 2147483;
-            cmd.CommandText = "set net_write_timeout=99999;set net_read_timeout=99999;";
-            await cmd.ExecuteNonQueryAsync(token);
-
-            cmd.CommandText = query;
-            addParameters?.Invoke(cmd);
-
-            await using var reader = await cmd.ExecuteReaderAsync(token);
-
-            if (reader is null)
-                throw new TaskCanceledException();
-
-            await readResults(reader);
-
-            return accumulateResult();
-        }, token);
-
-        [Obsolete]
-        public static IObservable<T> RunSqlQuery<T>(string query, Action<DbDataReader, IObserver<T>> readNext, Action<MySqlCommand> addSqlParameters, IScheduler scheduler) => Observable.Create<T>(async (observer, token) =>
-        {
-            try
-            {
-                await RunSqlQuery(query, async reader =>
+                cmd.CommandText = query;
+                foreach (var p in parameters)
                 {
+                    cmd.Parameters.AddWithValue(p.paramName, p.value);
+                }
+
+                try
+                {
+                    using var reader = await cmd.ExecuteReaderAsync(token);
+
+                    if (reader is null)
+                    {
+                        obs.OnError(new TaskCanceledException());
+                        return;
+                    }
+
                     while (await reader.ReadAsync(token))
                     {
-                        readNext(reader, observer);
+                        obs.OnNext(await read(reader, token));
                     }
-                    observer.OnCompleted();
-                }, () => Unit.Default, token, addSqlParameters);
-            }
-            catch (Exception ex)
-            {
-                observer.OnError(ex);
-                observer.OnCompleted();
-            }
-        }).SubscribeOn(scheduler);
+                }
+                catch (Exception ex)
+                {
+                    obs.OnError(ex);
+                }
+                finally
+                {
+                    obs.OnCompleted();
+                }
+            });
 
         private static IObservable<MemoryStream?> ReadDbx()
         {
