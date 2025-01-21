@@ -135,7 +135,7 @@ namespace SpikeFinder.Extensions
                 str.Position = originalPosition;
             }
         }
-        private static async Task<byte[]?> ReadBytes(Stream? str, CancellationToken ct, long bytes)
+        private static async Task<byte[]?> ReadBytes(Stream? str, long bytes, CancellationToken ct)
         {
             if (str!.Length - str.Position < bytes)
                 return default;
@@ -146,11 +146,12 @@ namespace SpikeFinder.Extensions
 
             return buff;
         }
-        private static Task<string?> DecryptDES(Stream? str, CancellationToken ct) => ReadStream(str, async () =>
+        private static Task<string?> DecryptDES(Stream? str, CancellationToken ct) =>
+            ReadStream(str, async () =>
             {
                 using var des = DES.Create();
 
-                des.Key = [233, 115, 79, 157, 35, 76, 186, 118];
+                des.Key = BitConverter.GetBytes(0x76BA4C239D4F73E9);
                 des.Mode = CipherMode.CFB;
                 des.Padding = PaddingMode.None;
                 des.IV = new byte[8];
@@ -163,24 +164,23 @@ namespace SpikeFinder.Extensions
 
                 return await sr.ReadToEndAsync(ct);
             });
-        private static Task<string?> DecryptAES(Stream? str, CancellationToken ct) => ReadStream(str, async () =>
-        {
-            //using var aes = Aes.Create();
+        private static Task<string?> DecryptAES(Stream? str, CancellationToken ct) =>
+            ReadStream(str, async () =>
+            {
+                const int tagSize = 16;
 
-            const int tagSize = 16;
+                if (await ReadBytes(str, 16, ct) is not { } salt || await ReadBytes(str, 12, ct) is not { } nonce || await ReadBytes(str, str!.Length - str.Position - tagSize, ct) is not { } cipher || await ReadBytes(str, tagSize, ct) is not { } tag)
+                    return default;
 
-            if (await ReadBytes(str, ct, 16) is not { } salt || await ReadBytes(str, ct, 12) is not { } nonce || await ReadBytes(str, ct, str!.Length - str.Position - tagSize) is not { } ciphertext || await ReadBytes(str, ct, tagSize) is not { } tag)
-                return default;
+                var key = KeyDerivation.Pbkdf2(Encoding.UTF8.GetString(Guid.Parse("42652554-345b-537a-6124-723635216557").ToByteArray()), salt, KeyDerivationPrf.HMACSHA512, 65535, 32);
 
-            var key = KeyDerivation.Pbkdf2("T%eB[4zSa$r65!eW", salt, KeyDerivationPrf.HMACSHA512, 65535, 32);
+                var aes = new AesGcm(key, tagSize);
 
-            var aes = new AesGcm(key, tagSize);
+                var plain = new byte[cipher.Length];
+                aes.Decrypt(nonce, cipher, tag, plain);
 
-            var plaintext = new byte[ciphertext.Length];
-            aes.Decrypt(nonce, ciphertext, tag, plaintext);
-
-            return Encoding.UTF8.GetString(plaintext);
-        });
+                return Encoding.UTF8.GetString(plain);
+            });
 
         public static IObservable<string?> ReadConnectionStringFromEyeSuite()
         {
