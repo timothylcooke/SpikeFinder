@@ -2,10 +2,12 @@
 using ReactiveUI.Fody.Helpers;
 using SpikeFinder.Models;
 using SpikeFinder.SQLite;
+using Syncfusion.Data.Extensions;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading;
@@ -17,10 +19,16 @@ namespace SpikeFinder.ViewModels
     public class SpikesViewModel : SfViewModel
     {
         public LenstarExam Exam { get; }
-        public double[] Spikes { get; }
-        public double MaxValue { get; }
-        public Geometry[] Geometries { get; }
+        [Reactive] public double[][] Spikes { get; private set; }
+        [Reactive] public double[] MaxValue { get; private set; }
+        [Reactive] public Geometry[][] Geometries { get; private set; }
+        [Reactive] public bool Used { get; private set; }
         public LenstarCursorPositions Cursors { get; }
+
+        private readonly Dictionary<string, long> _displayModes;
+        private readonly IDictionary<long, RenderableSpike> _spikes;
+        public List<string> DisplayModes => _displayModes.Keys.ToList();
+        [Reactive] public string DisplayMode { get; set; }
 
         public ObservableCollection<CursorPosition> SpikeControlCursors { get; }
 
@@ -32,7 +40,7 @@ namespace SpikeFinder.ViewModels
 
         public string Notes { get; set; }
 
-        public SpikesViewModel(LenstarExam exam, double[] spikes, double maxValue, Geometry[] geometries, LenstarCursorPositions cursors)
+        public SpikesViewModel(LenstarExam exam, IDictionary<long, RenderableSpike> spikes, LenstarCursorPositions cursors)
         {
             UrlPathSegment = $"/Spikes/{exam.Key}";
             Title = $"{exam.FirstName} {exam.LastName} (DOB {exam.DOB:d}; #{exam.PatientNumber}) {exam.Eye} measurement {exam.Timestamp:d}";
@@ -40,9 +48,25 @@ namespace SpikeFinder.ViewModels
             MeasureModes = LenstarExam.GetMeasureModesWithDescription().Select(x => new { Value = x.Key, Description = x.Value }).ToArray();
 
             Exam = exam;
-            Spikes = spikes;
-            MaxValue = maxValue;
-            Geometries = geometries;
+
+            _spikes = spikes;
+
+            DisplayMode = "Aggregate Scan Only";
+
+            _displayModes = new Dictionary<string, long> {
+                { DisplayMode, long.MinValue },
+                { "Aggregate + All measurements", long.MinValue + 1 },
+                { "All measurements", long.MinValue + 2 },
+            };
+
+            var measurements = spikes.Keys.Where(x => x is >= 0).OrderBy(x => x).ToList();
+
+            var lastPossibleMeasurement = (measurements[0] << 4) - 1;
+            var firstAscan = measurements.FindIndex(1, x => x > lastPossibleMeasurement);
+
+            Enumerable.Range(0, firstAscan).ForEach(i => _displayModes[$"Measurement {i + 1}"] = measurements[i]);
+            Enumerable.Range(0, firstAscan).ForEach(i => Enumerable.Range(0, 16).Select(ascan => (display: $"Measurement {i + 1}: Ascan {ascan + 1}", value: (measurements[i] << 4) + ascan)).Where(x => spikes.ContainsKey(x.value)).ForEach(x => _displayModes[$"{x.display}{(spikes[x.value].Used ? null : " (Not Used)")}"] = x.value));
+
             Cursors = cursors;
             MeasureMode = exam.MeasureMode ?? MeasureMode.PHAKIC;
             Notes = exam.PersistedSpikes?.Notes ?? "";
@@ -58,6 +82,19 @@ namespace SpikeFinder.ViewModels
                 NavigateBackCommand = ReactiveCommand.CreateFromObservable(HostScreen.Router.NavigateBack.Execute, HostScreen.Router.NavigateBack.CanExecute.CombineLatest(SaveCommand.IsExecuting, (canNavigateBack, isSaving) => canNavigateBack && !isSaving));
 
                 d(SaveCommand.InvokeCommand(HostScreen.Router.NavigateBack));
+
+                var renderableMeasurements = new[] { _spikes[long.MinValue] }.Concat(Enumerable.Range(0, firstAscan - 1).Select(i => _spikes[measurements[i]]));
+
+                d(this.WhenAnyValue(x => x.DisplayMode)
+                    .Select(x => _displayModes[x])
+                    .Select(x => _spikes.TryGetValue(x, out var spikes) ? [spikes] : x switch { long.MinValue + 1 => renderableMeasurements, long.MinValue + 2 => renderableMeasurements.Skip(1), _ => throw new Exception($"Invalid spike: {x}") })
+                    .ObserveOn(RxApp.MainThreadScheduler)
+                    .Do(x => Spikes = x.Select(y => y.Spikes).ToArray())
+                    .Do(x => MaxValue = x.Select(y => y.MaxValue).ToArray())
+                    .Do(x => Geometries = x.Select(y => y.Geometries).ToArray())
+                    .Do(x => Used = x.Select(y => y.Used).First())
+                    .Subscribe()
+                    );
 
                 d(SaveCommand);
                 d(NavigateBackCommand);

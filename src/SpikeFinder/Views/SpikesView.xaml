@@ -20,5 +20,6 @@
             <controls:SpikesControl HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="28" FontFamily="Arial" Padding="20" Spikes="{Binding Spikes}" Geometries="{Binding Geometries}" MaxValue="{Binding MaxValue}" Cursors="{Binding SpikeControlCursors}" MeasureMode="{Binding MeasureMode}" Wavelength="{Binding Exam.Wavelength}" />
         </ScrollViewer>
         <TextBox Grid.Row="1" mah:TextBoxHelper.Watermark="Enter notes here…" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Text="This Ascan was marked by EyeSuite as unusable." Foreground="Red" FontSize="28" FontFamily="Arial" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Used, ConverterParameter='x ? `Collapsed` : `Visible`', Converter={StaticResource Math}}" />
     </Grid>
 </rxui:ReactiveUserControl>

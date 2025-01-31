@@ -38,9 +38,11 @@
     <mah:MetroWindow.RightWindowCommands>
         <mah:WindowCommands>
             <!-- We use SplitButton because the default styling for ComboBox doesn't look good within a WindowCommand. We give it a Comamnd that opens the drop down -->
+            <mah:SplitButton Visibility="{Binding CurrentViewModel.DisplayModes, FallbackValue=Collapsed, ConverterParameter='x == null ? `Collapsed` : `Visible`', Converter={StaticResource Math}}" ItemsSource="{Binding CurrentViewModel.DisplayModes}"
+                             SelectedValue="{Binding CurrentViewModel.DisplayMode}" Command="{Binding ToggleDropDownCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}" />
+
             <mah:SplitButton Visibility="{Binding CurrentViewModel.MeasureModes, FallbackValue=Collapsed, ConverterParameter='x == null ? `Collapsed` : `Visible`', Converter={StaticResource Math}}" DisplayMemberPath="Description" SelectedValuePath="Value"
-                             ItemsSource="{Binding CurrentViewModel.MeasureModes}" SelectedValue="{Binding CurrentViewModel.MeasureMode}" Command="{Binding ToggleDropDownCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}"
-                             IsDropDownOpen="{Binding IsMeasureModeDropDownOpen}" />
+                             ItemsSource="{Binding CurrentViewModel.MeasureModes}" SelectedValue="{Binding CurrentViewModel.MeasureMode}" Command="{Binding ToggleDropDownCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}" />
 
             <Button ToolTip="Save" Command="{Binding CurrentViewModel.SaveCommand}" Visibility="{Binding Command, RelativeSource={RelativeSource Self}, ConverterParameter='x == null ? `Collapsed` : `Visible`', Converter={StaticResource Math}}">
                 <Rectangle Width="20" Height="20" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}">

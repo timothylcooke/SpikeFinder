@@ -51,7 +51,7 @@ namespace SpikeFinder.ViewModels
                 // Mark loadingItemCount as finished as soon as we load the total ascan data count.
                 d(this.WhenAnyValue(y => y.MeasurementsToRead).Where(x => x.TotalScans.HasValue).Take(1).ObserveOn(RxApp.MainThreadScheduler).Subscribe(x => loadingItemCount.SlowlyUpdatingProgress = x.TotalScans!.Value));
 
-                var readAndDecompressSpikes =
+                var ascans =
                     // Fetch the spike data from MySQL
                     ReadSpikes(exam, this.WhenAnyValue(x => x.MeasurementsToRead).Where(x => x.TotalScans is > 0).Select(x => (x.ExamId, x.Version)))
                     .Do(x => Debug.WriteLine($"Found scandata: {x.MeasurementId}/{x.Index}"))
@@ -61,30 +61,41 @@ namespace SpikeFinder.ViewModels
                         Observable.DeferAsync(async token =>
                             Observable.Return(await Task.Run(() => x.DecompressAsync(token), token), RxApp.TaskpoolScheduler)
                                 .ObserveOn(RxApp.MainThreadScheduler)
-                                .Do(_ => loadingSpikeData.SlowlyUpdatingProgress++)
+                                .Do(_ =>
+                                {
+                                    if (x.Used)
+                                        loadingSpikeData.SlowlyUpdatingProgress++;
+                                })
                                 .ObserveOn(RxApp.TaskpoolScheduler))
                     )
                     .Merge(Environment.ProcessorCount)
 
-                    // Merge DecompressedScans together by MeasurementId
-                    .GroupBy(x => x.MeasurementId, x => x.DecompressedScan)
-
-                    // Within each MeasurementId, sum all of the different float arrays
-                    .SelectMany(x =>
-                            Observable.Return(x.Key)
-                            .CombineLatest(x.Count(), x.Aggregate(SumDecompressedScans), (measurementId, count, spikes) => (measurementId, count, spikes))
-                    )
-
-                    // Don't run everything above twice.
                     .Replay()
                     .RefCount();
 
-                // Here, we aggregate them into one single spike and prepare them for rendering
-                var mergeSpikes = readAndDecompressSpikes
-                        .Select(x => x.spikes)
-                        .Aggregate(SumDecompressedScans)
-                        .CombineLatest(readAndDecompressSpikes.Sum(x => x.count), TransformSpikesForRender)
-                        .Select(x => (MeasurementId: -1, Spikes: x));
+                // There are three types of spikes we care about:
+                // 1) Each individual ascan
+                // 2) Each measurement (sum of up to 16 ascans)
+                // 3) Aggregate (sum of up to 6 measurements, or 96 ascans)
+
+                // #2:
+                var measurements = ascans.Where(x => x.Used)
+                    .GroupBy(x => x.MeasurementId, x => x.DecompressedScan)
+                    .SelectMany(x => Observable.CombineLatest(Observable.Return((long)x.Key), x.Count(), x.Aggregate(SumDecompressedScans), (measurementId, count, spikes) => (measurementId, count, spikes)))
+                    .Replay()
+                    .RefCount();
+
+                // This is the aggregate of everything we care about:
+                var spikesToRender = Observable.Merge(
+                    // #1: Each individual ascan:
+                    ascans.Select(x => new AggregatedSpikes(x.UniqueId, x.DecompressedScan, x.Used, 1)),
+
+                    // #2: Each measurement:
+                    measurements.Select(x => new AggregatedSpikes(x.measurementId, x.spikes, true, x.count)),
+
+                    // #3: Aggregate (sum of all measurements)
+                    Observable.CombineLatest(measurements.Select(x => x.spikes).Aggregate(SumDecompressedScans), measurements.Sum(x => x.count), (spikes, count) => new AggregatedSpikes(long.MinValue, spikes, true, count))
+                ).Select(TransformSpikesForRender);
 
                 IObservable<LenstarCursorPositions> cursors;
 
@@ -177,11 +188,12 @@ namespace SpikeFinder.ViewModels
                     cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE));
                 }
 
-                d(mergeSpikes
-                    .ObserveOn(RxApp.MainThreadScheduler)
-                    .Select(x => (x.Spikes.MaxValue, x.Spikes.Spikes, X: new Func<int, double>(y => y * Convert.ToDouble(ImageWidth) / x.Spikes.Spikes.Length), Y: new Func<double, double>(y => ImageHeight - y / x.Spikes.MaxValue * ImageHeight)))
-                    .Select(x => (x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 500).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 500, Math.Min(501, x.Spikes.Length - i * 500)).Select(i => string.Format(CultureInfo.InvariantCulture, "{0},{1}", x.X(i), x.Y(x.Spikes[i]))))))).ToArray()))
-                    .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered.Spikes, rendered.MaxValue, rendered.Geometries, cursors))
+                d(spikesToRender
+                    .ObserveOn(RxApp.MainThreadScheduler) // TODO: Group by MeasurementId.
+                    .Select(x => (x.UniqueId, x.Used, x.MaxValue, x.Spikes, X: new Func<int, double>(y => y * Convert.ToDouble(ImageWidth) / x.Spikes.Length), Y: new Func<double, double>(y => ImageHeight - y / x.MaxValue * ImageHeight)))
+                    .Select(x => (x.UniqueId, x.Used, x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 500).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 500, Math.Min(501, x.Spikes.Length - i * 500)).Select(i => string.Format(CultureInfo.InvariantCulture, "{0},{1}", x.X(i), x.Y(x.Spikes[i]))))))).ToArray()))
+                    .ToDictionary(x => x.UniqueId, x => new RenderableSpike(x.MaxValue, x.Spikes, x.Geometries, x.Used))
+                    .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered, cursors))
                     .Cast<IRoutableViewModel>()
                     .ObserveOn(RxApp.MainThreadScheduler)
                     .CatchAndShowErrors()
@@ -314,11 +326,11 @@ namespace SpikeFinder.ViewModels
                     0 => Observable.Return((x.version, blobMap: (BlobMap?)null)),
                     _ => BlobMap.FromExamId(x.examid!).Select(blobMap => (x.version, blobMap))
                 })
-                .SelectMany(x => MySqlExtensions.Select($@"SELECT ascan.fk_measurement, ascan.idx, ascan.scan_length{(x.version == 0 ? ", ascan.scandata" : null)}
+                .SelectMany(x => MySqlExtensions.Select($@"SELECT ascan.fk_measurement, ascan.idx, ascan.used, ascan.scan_length{(x.version == 0 ? ", ascan.scandata" : null)}
     FROM tbl_bio_measurement meas
     JOIN {(x.version == 0 ? "tbl_bio_ascan" : "tbl_bio_ascan2")} ascan ON ascan.fk_measurement = meas.pk_measurement
-    WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye AND ascan.used = 1
-    ORDER BY ascan.fk_measurement, ascan.idx;", [("ExamId", exam.ExamId), ("Eye", (byte)exam.Eye)], reader => new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetInt32(2), x.version == 0 ? (byte[])reader[3] : x.blobMap!.GetBlob($"{reader.GetInt32(0)}-a-{reader.GetByte(1)}"))));
+    WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye
+    ORDER BY ascan.fk_measurement, ascan.idx;", [("ExamId", exam.ExamId), ("Eye", (byte)exam.Eye)], reader => new CompressedSpikes(reader.GetInt32(0), reader.GetByte(1), reader.GetByte(2) != 0, reader.GetInt32(3), x.version == 0 ? (byte[])reader[4] : x.blobMap!.GetBlob($"{reader.GetInt32(0)}-a-{reader.GetByte(1)}"))));
 
         private static IObservable<CursorMarker> ReadCursors(LenstarExam exam)
         {
@@ -345,26 +357,26 @@ WHERE meas.fk_examid = @ExamId AND meas.eye = @Eye
 ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.Eye)], r => new BiometryData(r.GetInt32(0), (Algorithm)r.GetByte(1)));
         }
 
-        private static float[] SumDecompressedScans(float[] spike1, float[] spike2)
+        private static double[] SumDecompressedScans(double[] spikes1, double[] spikes2)
         {
-            return Enumerable.Range(0, Math.Min(spike1.Length, spike2.Length)).Select(i => spike1[i] + spike2[i]).ToArray();
+            return Enumerable.Range(0, Math.Min(spikes1.Length, spikes2.Length)).Select(i => spikes1[i] + spikes2[i]).ToArray();
         }
-        private static SpikeData TransformSpikesForRender(float[] spikes, int count)
+        private static TransformedSpikes TransformSpikesForRender(AggregatedSpikes data)
         {
             double maxValue = 0;
 
-            var answer = new double[spikes.Length];
+            var answer = new double[data.Spikes.Length];
 
-            for (var i = 0; i < spikes.Length; i++)
+            for (var i = 0; i < data.Spikes.Length; i++)
             {
-                answer[i] = Math.Pow(Math.Max(0, Math.Log(spikes[i] / count, 2)), spikesPower);
+                answer[i] = Math.Pow(Math.Max(0, Math.Log(data.Spikes[i] / data.Count, 2)), spikesPower);
                 maxValue = Math.Max(maxValue, answer[i]);
             }
 
-            return new SpikeData(answer, maxValue);
+            return new TransformedSpikes(data.UniqueId, answer, data.Used, maxValue);
         }
 
-        private record CompressedSpikes(int MeasurementId, byte Index, int ScanLength, byte[] CompressedScan)
+        private record CompressedSpikes(int MeasurementId, byte Index, bool Used, int ScanLength, byte[] CompressedScan)
         {
             public Task<DecompressedSpikes> DecompressAsync(CancellationToken token)
             {
@@ -372,7 +384,7 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
                 using var zip = new InflaterInputStream(ms);
                 using var br = new BinaryReader(zip);
 
-                var decompressed = new float[ScanLength];
+                var decompressed = new double[ScanLength];
                 var buff = new byte[4];
 
                 for (var i = 0; i < ScanLength; i++)
@@ -381,14 +393,18 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
                     decompressed[i] = BinaryPrimitives.ReadSingleBigEndian(br.ReadBytes(4));
                 }
 
-                return Task.FromResult(new DecompressedSpikes(MeasurementId, Index, ScanLength, decompressed));
+                return Task.FromResult(new DecompressedSpikes(MeasurementId, Index, Used, ScanLength, decompressed));
             }
         }
-        private record DecompressedSpikes(int MeasurementId, byte Index, int ScanLength, float[] DecompressedScan);
+        private record DecompressedSpikes(int MeasurementId, byte Index, bool Used, int ScanLength, double[] DecompressedScan)
+        {
+            public long UniqueId => (Convert.ToInt64(MeasurementId) << 4) + Index;
+        }
         private record CursorMarker(int MeasurementId, CursorElement Cursor, float ScanPos, float Value);
         private record SegmentLength(int MeasurementId, Dimension Element, float Dimension, bool Used);
         private record BiometryData(int MeasurementId, Algorithm Algorithm);
-        private record SpikeData(double[] Spikes, double MaxValue);
+        private record AggregatedSpikes(long UniqueId, double[] Spikes, bool Used, int Count);
+        private record TransformedSpikes(long UniqueId, double[] Spikes, bool Used, double MaxValue);
         private enum Algorithm : byte
         {
             Standard = 0,

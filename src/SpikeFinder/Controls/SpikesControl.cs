@@ -204,12 +204,12 @@ namespace SpikeFinder.Controls
             }
         }
 
-        public double MaxValue
+        public double[] MaxValue
         {
-            get => (double)GetValue(MaxValueProperty);
+            get => (double[])GetValue(MaxValueProperty);
             set => SetValue(MaxValueProperty, value);
         }
-        public static readonly DependencyProperty MaxValueProperty = DependencyProperty.Register(nameof(MaxValue), typeof(double), typeof(SpikesControl), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty MaxValueProperty = DependencyProperty.Register(nameof(MaxValue), typeof(double[]), typeof(SpikesControl), new FrameworkPropertyMetadata(new[] { 0.0 }, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public MeasureMode MeasureMode
         {
@@ -225,19 +225,19 @@ namespace SpikeFinder.Controls
         }
         public static readonly DependencyProperty WavelengthProperty = DependencyProperty.Register(nameof(Wavelength), typeof(double), typeof(SpikesControl), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public Geometry[] Geometries
+        public Geometry[][] Geometries
         {
-            get => (Geometry[])GetValue(GeometriesProperty);
+            get => (Geometry[][])GetValue(GeometriesProperty);
             set => SetValue(GeometriesProperty, value);
         }
-        public static readonly DependencyProperty GeometriesProperty = DependencyProperty.Register(nameof(Geometries), typeof(Geometry[]), typeof(SpikesControl), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty GeometriesProperty = DependencyProperty.Register(nameof(Geometries), typeof(Geometry[][]), typeof(SpikesControl), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public double[]? Spikes
+        public double[][]? Spikes
         {
-            get => (double[])GetValue(SpikesProperty);
+            get => (double[][])GetValue(SpikesProperty);
             set => SetValue(SpikesProperty, value);
         }
-        public static readonly DependencyProperty SpikesProperty = DependencyProperty.Register(nameof(Spikes), typeof(double[]), typeof(SpikesControl));
+        public static readonly DependencyProperty SpikesProperty = DependencyProperty.Register(nameof(Spikes), typeof(double[][]), typeof(SpikesControl));
 
         public ObservableCollection<CursorPosition>? Cursors
         {
@@ -412,6 +412,16 @@ namespace SpikeFinder.Controls
             return new(Math.Min(LoadSpikesViewModel.ImageWidth * Zoom + Padding.Left + Padding.Right, constraint.Width), Math.Min(LoadSpikesViewModel.ImageHeight * Zoom + Padding.Top + Padding.Bottom, constraint.Height));
         }
 
+        private Brush[] brushes = {
+            Brushes.Black,
+            Brushes.Red,
+            Brushes.Blue,
+            Brushes.Green,
+            Brushes.Violet,
+            Brushes.YellowGreen,
+            Brushes.Turquoise,
+        };
+
         protected override void OnRender(DrawingContext drawingContext)
         {
             base.OnRender(drawingContext);
@@ -423,7 +433,7 @@ namespace SpikeFinder.Controls
             drawingContext.PushClip(_clip);
 
             drawingContext.DrawGeometry(Brushes.Transparent, null, _clip);
-            Geometries.ForEach(x => drawingContext.DrawGeometry(null, new Pen(Brushes.Black, 0.75 / Zoom), x));
+            Geometries.Select((geometries, i) => (pen: new Pen(brushes[i % brushes.Length], 0.75 / Zoom), geometries)).ForEach(x => x.geometries.ForEach(y => drawingContext.DrawGeometry(null, x.pen, y)));
 
             drawingContext.Pop();
             drawingContext.Pop();
@@ -561,9 +571,9 @@ namespace SpikeFinder.Controls
                 .Where(x => x.otherEnd is not null)
                 .Select(x => (x.otherEnd!.Value, x.dimension));
         }
-        private Point PixelToScreenCoordinates(Point position) => new(Padding.Left + LoadSpikesViewModel.ImageWidth * Zoom * position.X / Spikes.Length, Padding.Top + LoadSpikesViewModel.ImageHeight * Zoom * (1 - position.Y / MaxValue));
-        private Point PixelToScreenCoordinates(int xPixel) => PixelToScreenCoordinates(new Point(xPixel, Spikes[xPixel]));
-        private int ScreenCoordinatesToPixel(double x) => (int)Math.Round((x - Padding.Left) / (LoadSpikesViewModel.ImageWidth * Zoom) * (Spikes.Length - 1));
+        private Point PixelToScreenCoordinates(Point position) => new(Padding.Left + LoadSpikesViewModel.ImageWidth * Zoom * position.X / Spikes[0].Length, Padding.Top + LoadSpikesViewModel.ImageHeight * Zoom * (1 - position.Y / MaxValue[0]));
+        private Point PixelToScreenCoordinates(int xPixel) => PixelToScreenCoordinates(new Point(xPixel, Spikes[0][xPixel]));
+        private int ScreenCoordinatesToPixel(double x) => (int)Math.Round((x - Padding.Left) / (LoadSpikesViewModel.ImageWidth * Zoom) * (Spikes[0].Length - 1));
         private static T? FindClosestPoint<T>(IEnumerable<T> possiblePoints, Func<T, double> getDistance, double maxDistance)
         {
             return possiblePoints.Select(x => (value: x, distance: getDistance(x)))
@@ -585,7 +595,7 @@ namespace SpikeFinder.Controls
             var lockToWithin = DragToPointWithin * Math.Max(Zoom, 1);
 
             var firstPoint = Math.Max(0, ScreenCoordinatesToPixel(mousePosition.X - lockToWithin));
-            var lastPoint = Math.Min(Spikes.Length - 1, ScreenCoordinatesToPixel(mousePosition.X + lockToWithin));
+            var lastPoint = Math.Min(Spikes[0].Length - 1, ScreenCoordinatesToPixel(mousePosition.X + lockToWithin));
 
             var closest = FindClosestPoint(Enumerable.Range(firstPoint, lastPoint - firstPoint).Cast<int?>(), x => (PixelToScreenCoordinates(x!.Value) - mousePosition).LengthSquared, lockToWithin * lockToWithin);
 
