@@ -7,7 +7,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading;
@@ -26,7 +28,6 @@ namespace SpikeFinder.ViewModels
         public LenstarCursorPositions Cursors { get; }
 
         private readonly Dictionary<string, long> _displayModes;
-        private readonly IDictionary<long, RenderableSpike> _spikes;
         public List<string> DisplayModes => _displayModes.Keys.ToList();
         [Reactive] public string DisplayMode { get; set; }
 
@@ -48,8 +49,6 @@ namespace SpikeFinder.ViewModels
             MeasureModes = LenstarExam.GetMeasureModesWithDescription().Select(x => new { Value = x.Key, Description = x.Value }).ToArray();
 
             Exam = exam;
-
-            _spikes = spikes;
 
             DisplayMode = "Aggregate Scan Only";
 
@@ -83,16 +82,22 @@ namespace SpikeFinder.ViewModels
 
                 d(SaveCommand.InvokeCommand(HostScreen.Router.NavigateBack));
 
-                var renderableMeasurements = new[] { _spikes[long.MinValue] }.Concat(Enumerable.Range(0, firstAscan - 1).Select(i => _spikes[measurements[i]]));
+                var renderableMeasurements = new[] { spikes[long.MinValue] }.Concat(Enumerable.Range(0, firstAscan - 1).Select(i => spikes[measurements[i]]));
 
                 d(this.WhenAnyValue(x => x.DisplayMode)
                     .Select(x => _displayModes[x])
-                    .Select(x => _spikes.TryGetValue(x, out var spikes) ? [spikes] : x switch { long.MinValue + 1 => renderableMeasurements, long.MinValue + 2 => renderableMeasurements.Skip(1), _ => throw new Exception($"Invalid spike: {x}") })
+                    .Select(x => spikes.TryGetValue(x, out var s) ? [s] : x switch { long.MinValue + 1 => renderableMeasurements, long.MinValue + 2 => renderableMeasurements.Skip(1), _ => throw new Exception($"Invalid spike: {x}") })
                     .ObserveOn(RxApp.MainThreadScheduler)
                     .Do(x => Spikes = x.Select(y => y.Spikes).ToArray())
                     .Do(x => MaxValue = x.Select(y => y.MaxValue).ToArray())
-                    .Do(x => Geometries = x.Select(y => y.Geometries).ToArray())
                     .Do(x => Used = x.Select(y => y.Used).First())
+                    .Do(x => Geometries = x.Select(spike =>
+                    {
+                        double X(int i) => i * Convert.ToDouble(LoadSpikesViewModel.ImageWidth) / spike.Spikes.Length;
+                        double Y(int i) => LoadSpikesViewModel.ImageHeight - spike.Spikes[i] / spike.MaxValue * LoadSpikesViewModel.ImageHeight;
+
+                        return Enumerable.Range(0, spike.Spikes.Length / 500).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 500, Math.Min(501, spike.Spikes.Length - i * 500)).Select(i => string.Format(CultureInfo.InvariantCulture, "{0},{1}", X(i), Y(i))))))).ToArray();
+                    }).ToArray())
                     .Subscribe()
                     );
 

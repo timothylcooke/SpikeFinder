@@ -8,7 +8,6 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reactive;
@@ -17,7 +16,6 @@ using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Media;
 
 namespace SpikeFinder.ViewModels
 {
@@ -189,10 +187,9 @@ namespace SpikeFinder.ViewModels
                 }
 
                 d(spikesToRender
-                    .ObserveOn(RxApp.MainThreadScheduler) // TODO: Group by MeasurementId.
-                    .Select(x => (x.UniqueId, x.Used, x.MaxValue, x.Spikes, X: new Func<int, double>(y => y * Convert.ToDouble(ImageWidth) / x.Spikes.Length), Y: new Func<double, double>(y => ImageHeight - y / x.MaxValue * ImageHeight)))
-                    .Select(x => (x.UniqueId, x.Used, x.MaxValue, x.Spikes, Geometries: Enumerable.Range(0, x.Spikes.Length / 500).Select(i => Geometry.Parse(string.Concat("M", string.Join('L', Enumerable.Range(i * 500, Math.Min(501, x.Spikes.Length - i * 500)).Select(i => string.Format(CultureInfo.InvariantCulture, "{0},{1}", x.X(i), x.Y(x.Spikes[i]))))))).ToArray()))
-                    .ToDictionary(x => x.UniqueId, x => new RenderableSpike(x.MaxValue, x.Spikes, x.Geometries, x.Used))
+                    .ObserveOn(RxApp.MainThreadScheduler)
+                    .Select(x => (x.UniqueId, x.Used, x.MaxValue, x.Original, x.Transformed))
+                    .ToDictionary(x => x.UniqueId, x => new RenderableSpike(x.MaxValue, x.Original, x.Transformed, x.Used))
                     .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered, cursors))
                     .Cast<IRoutableViewModel>()
                     .ObserveOn(RxApp.MainThreadScheduler)
@@ -365,15 +362,15 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
         {
             double maxValue = 0;
 
-            var answer = new double[data.Spikes.Length];
+            var transformed = new double[data.Spikes.Length];
 
             for (var i = 0; i < data.Spikes.Length; i++)
             {
-                answer[i] = Math.Pow(Math.Max(0, Math.Log(data.Spikes[i] / data.Count, 2)), spikesPower);
-                maxValue = Math.Max(maxValue, answer[i]);
+                transformed[i] = Math.Pow(Math.Max(0, Math.Log(data.Spikes[i] / data.Count, 2)), spikesPower);
+                maxValue = Math.Max(maxValue, transformed[i]);
             }
 
-            return new TransformedSpikes(data.UniqueId, answer, data.Used, maxValue);
+            return new TransformedSpikes(data.UniqueId, data.Spikes, transformed, data.Used, maxValue);
         }
 
         private record CompressedSpikes(int MeasurementId, byte Index, bool Used, int ScanLength, byte[] CompressedScan)
@@ -404,7 +401,7 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
         private record SegmentLength(int MeasurementId, Dimension Element, float Dimension, bool Used);
         private record BiometryData(int MeasurementId, Algorithm Algorithm);
         private record AggregatedSpikes(long UniqueId, double[] Spikes, bool Used, int Count);
-        private record TransformedSpikes(long UniqueId, double[] Spikes, bool Used, double MaxValue);
+        private record TransformedSpikes(long UniqueId, double[] Original, double[] Transformed, bool Used, double MaxValue);
         private enum Algorithm : byte
         {
             Standard = 0,

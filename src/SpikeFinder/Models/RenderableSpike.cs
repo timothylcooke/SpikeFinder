@@ -2,4 +2,4 @@
 
 namespace SpikeFinder.Models;
 
-public record RenderableSpike(double MaxValue, double[] Spikes, Geometry[] Geometries, bool Used);
+public record RenderableSpike(double MaxValue, double[] Original, double[] Spikes, bool Used);
