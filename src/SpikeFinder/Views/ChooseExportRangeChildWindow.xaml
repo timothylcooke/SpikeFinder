@@ -1,0 +1,31 @@
+﻿<mah:ChildWindow x:Class="SpikeFinder.Views.ChooseExportRangeChildWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:mah="http://metro.mahapps.com/winfx/xaml/simplechildwindow"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:controls="clr-namespace:SpikeFinder.Controls"
+                 xmlns:vm="clr-namespace:SpikeFinder.ViewModels"
+                 mc:Ignorable="d"
+                 HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                 d:DataContext="{d:DesignInstance Type=vm:ChooseExportRangeViewModel}"
+                 Title="Choose Export Range" Padding="20" ShowCloseButton="True">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden" HorizontalAlignment="Center" Focusable="False" FocusVisualStyle="{x:Null}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Click-and-drag to select the portion you want to export." VerticalAlignment="Center" />
+                <Button Margin="20,0" Content="Export _Entire Spike" Command="{Binding ExportEntireSpikeCommand}" />
+                <Button Content="Export _Selected Region" Command="{Binding ExportSelectedRegionCommand}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <controls:SpikesDrawing Grid.Row="2" x:Name="spikes" Geometries="{Binding Geometries}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+        <controls:RegionHighlighter Grid.Row="2" Width="{Binding ActualWidth, ElementName=spikes}" StartPosition="{Binding StartPosition, Mode=TwoWay}" EndPosition="{Binding EndPosition, Mode=TwoWay}" />
+    </Grid>
+</mah:ChildWindow>

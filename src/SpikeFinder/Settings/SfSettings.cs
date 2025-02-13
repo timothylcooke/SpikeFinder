@@ -76,7 +76,7 @@ namespace SpikeFinder.Settings
                         .Select(x => x.EventArgs)
                         .Throttle(TimeSpan.FromMilliseconds(500)).Select(_ => JsonConvert.SerializeObject(instanceRef, converters)).StartWith(initialJson).DistinctUntilChanged().Skip(1)
                         .SelectMany((x, _) => Observable.StartAsync(token => File.WriteAllTextAsync(filePath, x, token), RxApp.TaskpoolScheduler))
-                        .CatchAndShowErrors().Subscribe().DisposeWith(instance!._disposables);
+                        .CatchAndShowErrors(true).Subscribe().DisposeWith(instance!._disposables);
                 }
             }
 

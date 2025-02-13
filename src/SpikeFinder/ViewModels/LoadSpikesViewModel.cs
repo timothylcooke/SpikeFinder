@@ -146,7 +146,7 @@ namespace SpikeFinder.ViewModels
                                     return usable.Any() ? (int)Math.Round(usable.Average(y => y.ScanPos)) : new int?();
                                 });
                         })
-                        .CatchAndShowErrors()
+                        .CatchAndShowErrors(true)
                         .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE]));
 
 
@@ -193,7 +193,7 @@ namespace SpikeFinder.ViewModels
                     .CombineLatest(cursors, (rendered, cursors) => new SpikesViewModel(exam, rendered, cursors))
                     .Cast<IRoutableViewModel>()
                     .ObserveOn(RxApp.MainThreadScheduler)
-                    .CatchAndShowErrors()
+                    .CatchAndShowErrors(true)
                     .Select(x => HostScreen.Router.NavigateBack.Execute().Select(_ => x))
                     .Switch()
                     .WhereNotNull()

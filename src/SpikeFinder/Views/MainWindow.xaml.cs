@@ -89,7 +89,7 @@ namespace SpikeFinder.Views
         }
         private void NotifyException(Exception ex, bool isUpdateFlag)
         {
-            var button = new ToastButton(ReactiveCommand.CreateFromObservable(() => ShowChildWindowObservable(new ErrorDetailsChildWindow(ex))), null, "View Details");
+            var button = new ToastButton(ReactiveCommand.CreateFromObservable(() => ShowChildWindow(new ErrorDetailsChildWindow(ex))), null, "View Details");
 
             if (isUpdateFlag)
             {
@@ -101,17 +101,13 @@ namespace SpikeFinder.Views
 
         public ReactiveCommand<ChildWindow, Unit> ShowChildWindowCommand { get; }
 
-        public void ShowChildWindow(ChildWindow dialog)
-        {
-            ShowChildWindowCommand.Execute(dialog).Subscribe();
-        }
         public async Task ShowChildWindowAsync(ChildWindow dialog)
         {
             await ShowChildWindowAsync<object>(dialog);
         }
         public async Task<TResult> ShowChildWindowAsync<TResult>(ChildWindow dialog)
         {
-            return await ShowChildWindowAsync(dialog, () => ChildWindowManager.ShowChildWindowAsync<TResult>(this, dialog));
+            return await ShowChildWindowAsync(dialog, () => ChildWindowManager.ShowChildWindowAsync<TResult>(this, dialog, ChildWindowManager.OverlayFillBehavior.FullWindow));
         }
         private async Task<TResult> ShowChildWindowAsync<TResult>(ChildWindow dialog, Func<Task<TResult>> showChildWindow)
         {
@@ -130,11 +126,11 @@ namespace SpikeFinder.Views
                 otherDialogs.ForEach(x => x.IsEnabled = true);
             }
         }
-        public IObservable<Unit> ShowChildWindowObservable(ChildWindow dialog)
+        public IObservable<Unit> ShowChildWindow(ChildWindow dialog)
         {
             return Observable.StartAsync(() => ShowChildWindowAsync(dialog));
         }
-        public IObservable<TResult> ShowChildWindowObservable<TResult>(ChildWindow dialog)
+        public IObservable<TResult> ShowChildWindow<TResult>(ChildWindow dialog)
         {
             return Observable.StartAsync(() => ShowChildWindowAsync<TResult>(dialog));
         }
@@ -157,7 +153,7 @@ namespace SpikeFinder.Views
                 {
                     Observable.Start(showNotification, RxApp.MainThreadScheduler)
                         .Delay(dismissAfter.Value)
-                        .ObserveOnDispatcher()
+                        .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(notification => notification.Close());
                 }
                 else

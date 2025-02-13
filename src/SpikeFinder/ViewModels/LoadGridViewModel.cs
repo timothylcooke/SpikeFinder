@@ -121,7 +121,7 @@ namespace SpikeFinder.ViewModels
                 )
             )
             .Switch()
-            .CatchAndShowErrors()
+            .CatchAndShowErrors(true)
             .SubscribeOn(scheduler);
 
 
