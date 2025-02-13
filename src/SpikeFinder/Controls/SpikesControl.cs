@@ -412,7 +412,7 @@ namespace SpikeFinder.Controls
             return new(Math.Min(LoadSpikesViewModel.ImageWidth * Zoom + Padding.Left + Padding.Right, constraint.Width), Math.Min(LoadSpikesViewModel.ImageHeight * Zoom + Padding.Top + Padding.Bottom, constraint.Height));
         }
 
-        private Brush[] brushes = {
+        private readonly Brush[] _brushes = {
             Brushes.Black,
             Brushes.Red,
             Brushes.Blue,
@@ -433,7 +433,7 @@ namespace SpikeFinder.Controls
             drawingContext.PushClip(_clip);
 
             drawingContext.DrawGeometry(Brushes.Transparent, null, _clip);
-            Geometries.Select((geometries, i) => (pen: new Pen(brushes[i % brushes.Length], 0.75 / Zoom), geometries)).ForEach(x => x.geometries.ForEach(y => drawingContext.DrawGeometry(null, x.pen, y)));
+            Geometries.Select((geometries, i) => (pen: new Pen(_brushes[i % _brushes.Length], 0.75 / Zoom), geometries)).ForEach(x => x.geometries.ForEach(y => drawingContext.DrawGeometry(null, x.pen, y)));
 
             drawingContext.Pop();
             drawingContext.Pop();
@@ -447,7 +447,7 @@ namespace SpikeFinder.Controls
 
                     DrawCursor(drawingContext, c.X.Value);
 
-                    Pen CreateDottedRedLine() => new(Brushes.Red, 1) { DashStyle = new DashStyle(new[] { 5.0, 5.0 }, 0) };
+                    Pen CreateDottedRedLine() => new(Brushes.Red, 1) { DashStyle = new DashStyle([ 5.0, 5.0 ], 0) };
 
                     if (c == _draggingCursor)
                     {

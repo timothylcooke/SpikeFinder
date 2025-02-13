@@ -29,7 +29,7 @@ namespace SpikeFinder.ViewModels
         [Reactive] public ReactiveCommand<Unit, Unit>? SettingsCommand { get; protected set; }
         [Reactive] public ReactiveCommand<Unit, Unit>? SaveCommand { get; protected set; }
         [Reactive] public ReactiveCommand<Unit, ExportRange>? ExportCommand { get; protected set; }
-        [Reactive] public ReactiveCommand<Unit, IRoutableViewModel?> NavigateBackCommand { get; protected set; }
+        [Reactive] public ReactiveCommand<Unit, IRoutableViewModel> NavigateBackCommand { get; protected set; }
 
         public abstract string? Title { get; }
         public IScreen HostScreen => App.Bootstrapper;
