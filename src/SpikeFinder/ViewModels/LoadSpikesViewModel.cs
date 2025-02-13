@@ -23,7 +23,7 @@ namespace SpikeFinder.ViewModels
     {
         public const int ImageHeight = 1200;
         public const int ImageWidth = 4800;
-        const double spikesPower = 1.8;
+        const double spikesPower = 2.0;
 
         public LoadSpikesViewModel(LenstarExam exam)
         {
@@ -366,7 +366,7 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
 
             for (var i = 0; i < data.Spikes.Length; i++)
             {
-                transformed[i] = Math.Pow(Math.Max(0, Math.Log(data.Spikes[i] / data.Count, 2)), spikesPower);
+                transformed[i] = Math.Pow(Math.Log(data.Spikes[i] / data.Count + 1, 2), spikesPower);
                 maxValue = Math.Max(maxValue, transformed[i]);
             }
 
