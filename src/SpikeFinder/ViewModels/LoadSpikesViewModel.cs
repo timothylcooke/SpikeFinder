@@ -86,13 +86,13 @@ namespace SpikeFinder.ViewModels
                 // This is the aggregate of everything we care about:
                 var spikesToRender = Observable.Merge(
                     // #1: Each individual ascan:
-                    ascans.Select(x => new AggregatedSpikes(x.UniqueId, x.DecompressedScan, x.Used, 1)),
+                    ascans.Select(x => new AggregatedSpikes(x.UniqueId, x.DecompressedScan, x.Used, 1, 1)),
 
                     // #2: Each measurement:
-                    measurements.Select(x => new AggregatedSpikes(x.measurementId, x.spikes, true, x.count)),
+                    measurements.Select(x => new AggregatedSpikes(x.measurementId, x.spikes, true, x.count, 1.0 / x.count)),
 
                     // #3: Aggregate (sum of all measurements)
-                    Observable.CombineLatest(measurements.Select(x => x.spikes).Aggregate(SumDecompressedScans), measurements.Sum(x => x.count), (spikes, count) => new AggregatedSpikes(long.MinValue, spikes, true, count))
+                    Observable.CombineLatest(measurements.Select(x => x.spikes).Aggregate(SumDecompressedScans), measurements.Sum(x => x.count), (spikes, numAscans) => new AggregatedSpikes(long.MinValue, spikes, true, numAscans, 1.0 / numAscans))
                 ).Select(TransformSpikesForRender);
 
                 IObservable<LenstarCursorPositions> cursors;
@@ -370,7 +370,7 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
                 maxValue = Math.Max(maxValue, transformed[i]);
             }
 
-            return new TransformedSpikes(data.UniqueId, data.Spikes, transformed, data.Used, maxValue);
+            return new TransformedSpikes(data.UniqueId, data.Scale == 1 ? data.Spikes : data.Spikes.Select(x => x * data.Scale).ToArray(), transformed, data.Used, maxValue);
         }
 
         private record CompressedSpikes(int MeasurementId, byte Index, bool Used, int ScanLength, byte[] CompressedScan)
@@ -400,7 +400,7 @@ ORDER BY meas.pk_measurement;", [("@ExamId", exam.ExamId), ("@Eye", (byte)exam.E
         private record CursorMarker(int MeasurementId, CursorElement Cursor, float ScanPos, float Value);
         private record SegmentLength(int MeasurementId, Dimension Element, float Dimension, bool Used);
         private record BiometryData(int MeasurementId, Algorithm Algorithm);
-        private record AggregatedSpikes(long UniqueId, double[] Spikes, bool Used, int Count);
+        private record AggregatedSpikes(long UniqueId, double[] Spikes, bool Used, int Count, double Scale);
         private record TransformedSpikes(long UniqueId, double[] Original, double[] Transformed, bool Used, double MaxValue);
         private enum Algorithm : byte
         {

@@ -99,57 +99,56 @@ namespace SpikeFinder.ViewModels
                         .Select(x => (x.exportRange with { SaveAs = x.dialog.FileName })));
 
                 d(ExportCommand.IsExecuting.Invert().BindTo(this, x => x.IsNotExporting));
-                d(ExportCommand.Select(x => (x.SaveAs, measurements: renderableMeasurements.Skip(1).Select(y => (firstIndex: (int)Math.Floor(x.Min * y.Spikes.Length), lastIndex: (int)Math.Ceiling(x.Max * y.Spikes.Length), y.Original, y.Spikes)).ToList()))
+                d(ExportCommand.Select(x => (x.SaveAs, measurements: renderableMeasurements.Select(y => (firstIndex: (int)Math.Floor(x.Min * y.Spikes.Length), lastIndex: (int)Math.Ceiling(x.Max * y.Spikes.Length), y.Original, y.Spikes)).ToList()))
                     .Do(x =>
                     {
-                        using (var excel = new ExcelEngine())
-                        {
-                            excel.Excel.DefaultVersion = ExcelVersion.Excel2016;
+                        using var excel = new ExcelEngine();
 
-                            var sheetNames = new[] { "Raw Data" }.Concat(x.measurements.Select((_, i) => $"Measurement {i + 1}")).ToArray();
+                        excel.Excel.DefaultVersion = ExcelVersion.Excel2016;
 
-                            var workbook = excel.Excel.Workbooks.Create(sheetNames);
+                        var sheetNames = new[] { "Raw Data" }.Concat(x.measurements.Select((_, i) => $"Measurement {i + 1}")).ToArray();
 
-                            var sheet = workbook.Worksheets[0];
+                        var workbook = excel.Excel.Workbooks.Create(sheetNames);
 
-                            sheet.Range["B2"].Value = "Wavelength (nm)";
-                            sheet.Range["B3"].Value2 = Exam.Wavelength;
+                        var sheet = workbook.Worksheets[0];
 
-                            sheet.Range["C2"].Value = "First Name";
-                            sheet.Range["C3"].Value2 = Exam.FirstName;
+                        sheet.Range["B2"].Value = "Wavelength (nm)";
+                        sheet.Range["B3"].Value2 = Exam.Wavelength;
 
-                            sheet.Range["D2"].Value = "Last Name";
-                            sheet.Range["D3"].Value2 = Exam.LastName;
+                        sheet.Range["C2"].Value = "First Name";
+                        sheet.Range["C3"].Value2 = Exam.FirstName;
 
-                            sheet.Range["E2"].Value = "Timestamp";
-                            sheet.Range["E3"].Value2 = Exam.Timestamp;
-                            sheet.Range["E3"].NumberFormat = $"{CultureInfo.CurrentCulture.DateTimeFormat.ShortDatePattern} {CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern}".Replace("tt", "AM/PM");
+                        sheet.Range["D2"].Value = "Last Name";
+                        sheet.Range["D3"].Value2 = Exam.LastName;
 
-                            sheet.Range["F2"].Value = "Unique ID";
-                            sheet.Range["F3"].Value2 = Exam.Key;
+                        sheet.Range["E2"].Value = "Timestamp";
+                        sheet.Range["E3"].Value2 = Exam.Timestamp;
+                        sheet.Range["E3"].NumberFormat = $"{CultureInfo.CurrentCulture.DateTimeFormat.ShortDatePattern} {CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern}".Replace("tt", "AM/PM");
 
-                            var position = x.measurements[0].firstIndex > 1000 ? "posterior" : "anterior";
-                            sheet.Range["G2"].Value = $"First point is more {position} than the anterior corneal spike (measured in millimeters in air thickness):";
-                            sheet.Range["G3"].Value2 = Math.Abs((x.measurements[0].firstIndex - 1000) / 1250.0);
+                        sheet.Range["F2"].Value = "Unique ID";
+                        sheet.Range["F3"].Value2 = Exam.Key;
 
-                            Enumerable.Range(0, x.measurements.Count)
-                                .ForEach(m =>
-                                {
-                                    var meas = x.measurements[m];
+                        var position = x.measurements[0].firstIndex > 1000 ? "posterior" : "anterior";
+                        sheet.Range["G2"].Value = $"First point is more {position} than the anterior corneal spike (measured in millimeters in air thickness):";
+                        sheet.Range["G3"].Value2 = Math.Abs((x.measurements[0].firstIndex - 1000) / 1250.0);
 
-                                    sheet.Range[$"{(char)('B' + m)}5"].Value = $"Measurement {m + 1} (Original)";
-                                    Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
-                                        .ForEach(r => sheet.Range[$"{(char)('B' + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Original[r]);
+                        Enumerable.Range(0, x.measurements.Count)
+                            .ForEach(m =>
+                            {
+                                var meas = x.measurements[m];
 
-                                    sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}5"].Value = $"Measurement {m + 1} (SpikeFinder)";
-                                    Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
-                                        .ForEach(r => sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Spikes[r]);
-                                });
+                                sheet.Range[$"{(char)('B' + m)}5"].Value = m switch { 0 => "Aggregate Measurement (Original)", _ => $"Measurement {m} (Original)" };
+                                Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
+                                    .ForEach(r => sheet.Range[$"{(char)('B' + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Original[r]);
 
-                            sheet.Range[1, 2, 1, Math.Max(7, (x.measurements.Count + 1) * 2)].Columns.ForEach(x => x.ColumnWidth = 25);
+                                sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}5"].Value = m switch { 0 => "Aggregate Measurement (SpikeFinder)", _ => $"Measurement {m + 1} (SpikeFinder)" };
+                                Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
+                                    .ForEach(r => sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Spikes[r]);
+                            });
 
-                            workbook.SaveAs(x.SaveAs);
-                        }
+                        sheet.Range[1, 2, 1, Math.Max(7, (x.measurements.Count + 1) * 2)].Columns.ForEach(x => x.ColumnWidth = 25);
+
+                        workbook.SaveAs(x.SaveAs);
                     })
                     .CatchAndShowErrors(true)
                     .Subscribe());
