@@ -88,7 +88,7 @@ namespace SpikeFinder.ViewModels
 
                 d(SaveCommand.InvokeCommand(HostScreen.Router.NavigateBack));
 
-                var renderableMeasurements = new[] { spikes[long.MinValue] }.Concat(Enumerable.Range(0, firstAscan - 1).Select(i => spikes[measurements[i]]));
+                var renderableMeasurements = new[] { spikes[long.MinValue] }.Concat(Enumerable.Range(0, firstAscan).Select(i => spikes[measurements[i]]));
 
                 ExportCommand = ReactiveCommand.CreateFromObservable(() =>
                     Observable.Return(new ChooseExportRangeChildWindow(renderableMeasurements.Skip(1).Select(Render).ToArray()))
