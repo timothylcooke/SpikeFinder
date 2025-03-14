@@ -141,7 +141,7 @@ namespace SpikeFinder.ViewModels
                                 Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
                                     .ForEach(r => sheet.Range[$"{(char)('B' + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Original[r]);
 
-                                sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}5"].Value = m switch { 0 => "Aggregate Measurement (SpikeFinder)", _ => $"Measurement {m + 1} (SpikeFinder)" };
+                                sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}5"].Value = m switch { 0 => "Aggregate Measurement (SpikeFinder)", _ => $"Measurement {m} (SpikeFinder)" };
                                 Enumerable.Range(meas.firstIndex, meas.lastIndex - meas.firstIndex)
                                     .ForEach(r => sheet.Range[$"{(char)('B' + x.measurements.Count + 1 + m)}{6 + r - meas.firstIndex}"].Value2 = meas.Spikes[r]);
                             });
