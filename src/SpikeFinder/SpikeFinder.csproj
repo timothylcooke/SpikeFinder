@@ -6,8 +6,7 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
 
-    <VersionPrefix>3.2.0</VersionPrefix>
-    <VersionSuffix>beta</VersionSuffix>
+    <VersionPrefix>3.3.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
