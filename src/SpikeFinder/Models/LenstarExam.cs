@@ -113,6 +113,18 @@ namespace SpikeFinder.Models
                 return null;
             }
         }
+        public double? SpikeFinderChT
+        {
+            get
+            {
+                if (PersistedSpikes != null && Wavelength != null && MeasureMode is { } mm)
+                {
+                    return (PersistedSpikes.Choroid - PersistedSpikes.RPE) / 1250.0 / RefractiveIndexMethod.Current.RefractiveIndex(Dimension.ChT, mm, Wavelength.Value);
+                }
+
+                return null;
+            }
+        }
         public double? SpikeFinderAL
         {
             get
@@ -177,6 +189,10 @@ namespace SpikeFinder.Models
         public void OnRetinaRefractiveIndexChanged()
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderRT)));
+        }
+        public void OnChoroidRefractiveIndexChanged()
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderChT)));
         }
 
         public override int GetHashCode()

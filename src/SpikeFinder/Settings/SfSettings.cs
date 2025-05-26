@@ -113,7 +113,10 @@ namespace SpikeFinder.Settings
         [Reactive, DataMember] public string PseudophakicPMMARefractiveIndex { get; set; } = "1.49";
         [Reactive, DataMember] public string PseudophakicSiliconeRefractiveIndex { get; set; } = "1.44";
         [Reactive, DataMember] public string RetinaRefractiveIndex { get; set; } = "1.4";
+        [Reactive, DataMember] public string ChoroidRefractiveIndex { get; set; } = "1.4";
         [Reactive, DataMember] public string SiliconeOilRefractiveIndex { get; set; } = "1.406";
+        [Reactive, DataMember] public bool Retina200Microns { get; set; } = false;
+        [Reactive, DataMember] public bool EnableChoroidThickness { get; set; } = false;
 
         public double GetLensRefractiveIndex(MeasureMode measureMode, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => GetLensRefractiveIndex(RefractiveIndices.RefractiveIndexMethod.GetLensMaterial(measureMode), wavelength, refractiveIndexMethod);
         public double GetLensRefractiveIndex(LensMaterial material, double wavelength, RefractiveIndexMethod? refractiveIndexMethod = null) => RefractiveIndexMethod == RefractiveIndexMethods.Air ? 1 : ((Func<double, double>)(

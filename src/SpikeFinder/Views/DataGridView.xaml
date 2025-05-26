@@ -58,6 +58,7 @@
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderVD, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderRT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAL, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderChT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
             </sf:SfDataGrid.Columns>
         </sf:SfDataGrid>
     </Grid>

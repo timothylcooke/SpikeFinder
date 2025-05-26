@@ -129,6 +129,7 @@ namespace SpikeFinder.ViewModels
                             CursorElement.PosteriorLens => x.IsValueSelected(Dimension.LT),
                             CursorElement.ILM => x.IsValueSelected(Dimension.AL),
                             CursorElement.RPE => x.IsValueSelected(Dimension.AL) || x.IsValueSelected(Dimension.RT),
+                            CursorElement.Choroid => x.IsValueSelected(Dimension.ChT),
                             _ => false
                         })))
                         .Select(x => (Cursors: x.Cursors.ToDictionary(y => y.Key, y => (Usable: x.IsCursorUsable(y.Key), y.Value.ScanPos)), x.Algorithm))
@@ -147,7 +148,7 @@ namespace SpikeFinder.ViewModels
                                 });
                         })
                         .CatchAndShowErrors(true)
-                        .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE]));
+                        .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE], null));
 
 
                     //Increment progress on the main thread.
@@ -183,7 +184,7 @@ namespace SpikeFinder.ViewModels
                 else
                 {
                     var s = exam.PersistedSpikes;
-                    cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE));
+                    cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE, s.Choroid));
                 }
 
                 d(spikesToRender
@@ -222,7 +223,8 @@ namespace SpikeFinder.ViewModels
                 CursorPosition(cursors, CursorElement.AnteriorLens),
                 CursorPosition(cursors, CursorElement.PosteriorLens),
                 CursorPosition(cursors, CursorElement.ILM),
-                CursorPosition(cursors, CursorElement.RPE)
+                CursorPosition(cursors, CursorElement.RPE),
+                CursorPosition(cursors, CursorElement.Choroid)
             );
         }
         private static int? CursorPosition(IList<CursorMarker> cursors, CursorElement element)

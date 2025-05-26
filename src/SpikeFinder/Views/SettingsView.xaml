@@ -216,5 +216,18 @@
                 <Button Grid.Row="9" Grid.Column="3" MinWidth="75" Content="Merge" Command="{Binding MergeCommand}" />
             </Grid>
         </ScrollViewer>
+
+        <ScrollViewer Grid.Column="2" x:Name="SegmentsSettings" Visibility="{Binding CurrentPage, ConverterParameter='$`{x}` == `Segments` ? `Visible` : `Collapsed`', Converter={StaticResource Math}}" FocusManager.IsFocusScope="True" FocusManager.FocusedElement="{Binding ElementName=Retina200Microns}" VerticalScrollBarVisibility="Auto" Focusable="False">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <CheckBox x:Name="Retina200Microns" IsChecked="{Binding Retina200Microns}" Content="Force _200 Micron Retina" />
+                <CheckBox Grid.Row="2" IsChecked="{Binding EnableChoroidThickness}" Content="Enable _Choroid Thickness" />
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </rxui:ReactiveUserControl>

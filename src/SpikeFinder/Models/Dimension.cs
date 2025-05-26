@@ -21,6 +21,9 @@ namespace SpikeFinder.Models
         [DimensionCursors(CursorElement.ILM, CursorElement.RPE)]
         RT = 7,
         [Description("Axial Length")]
-        AL = 8
+        AL = 8,
+        [Description("Choroidal Thickness")]
+        [DimensionCursors(CursorElement.RPE, CursorElement.Choroid)]
+        ChT = 9,
     }
 }

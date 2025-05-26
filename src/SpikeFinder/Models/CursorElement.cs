@@ -20,5 +20,8 @@ namespace SpikeFinder.Models
 
         [Description("RPE")]
         RPE = 7,
+
+        [Description("Choroid")]
+        Choroid = 8,
     }
 }

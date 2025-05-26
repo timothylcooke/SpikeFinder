@@ -32,7 +32,7 @@ namespace SpikeFinder.SQLite
             {
                 using var cmd = CreateCommand();
 
-                cmd.CommandText = @$"INSERT OR {(overrideSpikes ? "REPLACE" : "IGNORE")} INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes, @MeasureMode);";
+                cmd.CommandText = @$"INSERT OR {(overrideSpikes ? "REPLACE" : "IGNORE")} INTO Spikes VALUES(@ExamKey, @PosteriorCornea, @AnteriorLens, @PosteriorLens, @ILM, @RPE, @Notes, @MeasureMode, @Choroid);";
                 cmd.Parameters.AddWithValue("ExamKey", examKey);
                 cmd.Parameters.AddWithValue("PosteriorCornea", spikes.PosteriorCornea);
                 cmd.Parameters.AddWithValue("AnteriorLens", spikes.AnteriorLens);
@@ -41,6 +41,7 @@ namespace SpikeFinder.SQLite
                 cmd.Parameters.AddWithValue("RPE", spikes.RPE);
                 cmd.Parameters.AddWithValue("Notes", spikes.Notes);
                 cmd.Parameters.AddWithValue("MeasureMode", (object?)spikes.MeasureMode ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("Choroid", spikes.Choroid);
 
                 if (await cmd.ExecuteNonQueryAsync(token) != 1)
                     success = false;
@@ -80,7 +81,7 @@ namespace SpikeFinder.SQLite
 
             while (await reader.ReadAsync(token))
             {
-                yield return (reader.GetString(0), new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6), (MeasureMode?)await ReadByte(7)));
+                yield return (reader.GetString(0), new(await ReadInt32(1), await ReadInt32(2), await ReadInt32(3), await ReadInt32(4), await ReadInt32(5), reader.GetString(6), (MeasureMode?)await ReadByte(7), await ReadInt32(8)));
             }
         }
 
@@ -111,15 +112,19 @@ namespace SpikeFinder.SQLite
                     {
                         case 0:
                             await sql.UpgradeFromScratch(cmd, token);
-                            version = 2;
+                            version = 3;
                             break;
                         case 1:
                             await sql.UpgradeFromV1(cmd, token);
-                            version = 2;
+                            version = 3;
+                            break;
+                        case 2:
+                            await sql.UpgradeFromV2(cmd, token);
+                            version = 3;
                             break;
                     }
 
-                    const int ExpectedVersion = 2;
+                    const int ExpectedVersion = 3;
                     if (version != ExpectedVersion)
                         throw new Exception($"The database is version {version}. This version of SpikeFinder is only compatible with version {ExpectedVersion}.");
                 }, token);
@@ -133,11 +138,11 @@ namespace SpikeFinder.SQLite
             await cmd.ExecuteNonQueryAsync(token);
 
             cmd.CommandText = @"
-CREATE TABLE Spikes(ExamKey CHAR(40) PRIMARY KEY, PosteriorCornea INT, AnteriorLens INT, PosteriorLens INT, ILM INT, RPE INT, Notes TEXT, MeasureMode INT);
-INSERT INTO Version VALUES(2);
+CREATE TABLE Spikes(ExamKey CHAR(40) PRIMARY KEY, PosteriorCornea INT, AnteriorLens INT, PosteriorLens INT, ILM INT, RPE INT, Notes TEXT, MeasureMode INT, Choroid INT);
+INSERT INTO Version VALUES(3);
 ";
             if (await cmd.ExecuteNonQueryAsync(token) != 1)
-                throw new Exception("Failed to upgrade database to v1");
+                throw new Exception("Failed to upgrade database to v3");
         }
         private async Task UpgradeFromV1(SQLiteCommand cmd, CancellationToken token)
         {
@@ -146,10 +151,23 @@ INSERT INTO Version VALUES(2);
 
             cmd.CommandText = @"
 ALTER TABLE Spikes ADD MeasureMode INT;
-INSERT INTO Version VALUES(2);
+ALTER TABLE Spikes ADD Choroid INT;
+INSERT INTO Version VALUES(3);
 ";
             if (await cmd.ExecuteNonQueryAsync(token) < 1)
-                throw new Exception("Failed to upgrade database to v2");
+                throw new Exception("Failed to upgrade database to v3");
+        }
+        private async Task UpgradeFromV2(SQLiteCommand cmd, CancellationToken token)
+        {
+            cmd.CommandText = "DELETE FROM Version;";
+            await cmd.ExecuteNonQueryAsync(token);
+
+            cmd.CommandText = @"
+ALTER TABLE Spikes ADD Choroid INT;
+INSERT INTO Version VALUES(3);
+";
+            if (await cmd.ExecuteNonQueryAsync(token) < 1)
+                throw new Exception("Failed to upgrade database to v3");
         }
         private Task OpenAsync(CancellationToken token) => _sql.OpenAsync(token);
         public SQLiteCommand CreateCommand() => _sql.CreateCommand();

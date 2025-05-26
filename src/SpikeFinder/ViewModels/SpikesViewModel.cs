@@ -3,6 +3,7 @@ using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
+using SpikeFinder.Settings;
 using SpikeFinder.SQLite;
 using SpikeFinder.Views;
 using Syncfusion.Data.Extensions;
@@ -15,7 +16,6 @@ using System.Globalization;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -77,7 +77,8 @@ namespace SpikeFinder.ViewModels
             Notes = exam.PersistedSpikes?.Notes ?? "";
 
             SpikeControlCursors = new ObservableCollection<CursorPosition>(
-                    from x in new(int? x, CursorElement element)[] { (cursors.PosteriorCornea, CursorElement.PosteriorCornea), (cursors.AnteriorLens, CursorElement.AnteriorLens), (cursors.PosteriorLens, CursorElement.PosteriorLens), (cursors.RPE - 350 ?? cursors.ILM, CursorElement.ILM), (cursors.RPE ?? cursors.ILM + 350, CursorElement.RPE) }
+                    from x in new(int? x, CursorElement element)[] { (cursors.PosteriorCornea, CursorElement.PosteriorCornea), (cursors.AnteriorLens, CursorElement.AnteriorLens), (cursors.PosteriorLens, CursorElement.PosteriorLens), ((SfMachineSettings.Instance.Retina200Microns ? (cursors.RPE - 350 ?? cursors.ILM) : (cursors.ILM ?? cursors.RPE - 350)), CursorElement.ILM), (cursors.RPE ?? cursors.ILM + 350, CursorElement.RPE), (cursors.Choroid, CursorElement.Choroid) }
+                    where x.element != CursorElement.Choroid || SfMachineSettings.Instance.EnableChoroidThickness
                     select new CursorPosition { X = x.x, DisplayName = typeof(CursorElement).GetField(typeof(CursorElement).GetEnumName(x.element)!)!.GetCustomAttributes<DescriptionAttribute>().Single().Description, CursorElement = x.element }
                 );
 

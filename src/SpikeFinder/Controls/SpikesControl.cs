@@ -3,6 +3,7 @@ using SpikeFinder.Attributes;
 using SpikeFinder.Extensions;
 using SpikeFinder.Models;
 using SpikeFinder.RefractiveIndices;
+using SpikeFinder.Settings;
 using SpikeFinder.ViewModels;
 using Syncfusion.Data.Extensions;
 using System;
@@ -30,6 +31,9 @@ namespace SpikeFinder.Controls
 
             ContextMenu = (ContextMenu)FindResource("SpikesControlContextMenu");
             ContextMenu.DataContext = this;
+
+            if (SfMachineSettings.Instance.EnableChoroidThickness)
+                CursorElementsInOrder[CursorElement.Choroid] = 6;
 
             this.WhenActivated(d =>
             {
@@ -376,7 +380,10 @@ namespace SpikeFinder.Controls
                 e.Data.GetData(typeof(CursorPosition)) is CursorPosition cursor && cursor == _draggingCursor)
             {
                 _draggingCursor.X = PixelToDragTo(_lastDragPosition = e.GetPosition(this));
-                AdjustDependentCursorPosition(_draggingCursor);
+                if (SfMachineSettings.Instance.Retina200Microns)
+                {
+                    AdjustDependentCursorPosition(_draggingCursor);
+                }
 
                 InvalidateVisual();
             }
@@ -500,13 +507,31 @@ namespace SpikeFinder.Controls
                                 var opl = Math.Abs(dimen.otherEndPosition - c.X!.Value) / 1250.0;
                                 var ri = RefractiveIndexMethod.Current.RefractiveIndex(dimen.dimension, MeasureMode, Wavelength);
 
-                                var line1 = new FormattedText($"OPL = {opl:F3} mm", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
-                                var line2 = new FormattedText($"RI = {ri:F3}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
-                                var line3 = new FormattedText($"{typeof(Dimension).GetEnumName(dimen.dimension)} = {opl / ri - (dimen.dimension == Dimension.AD ? 0.1 : 0):F3} mm", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
+                                string format = "{0:F3} mm";
+                                double adAdjustment = 0.1;
 
-                                drawingContext.DrawText(line1, new Point((min + max - line1.Width) / 2, yTop + 10 + 20));
-                                drawingContext.DrawText(line2, new Point((min + max - line2.Width) / 2, yTop + 10 + 20 + line1.Height));
-                                drawingContext.DrawText(line3, new Point((min + max - line3.Width) / 2, yTop + 10 + 20 + line1.Height + line2.Height));
+                                if (opl <= 0.500)
+                                {
+                                    format = "{0:F1} μm";
+                                    adAdjustment = 0.1E3;
+
+                                    opl *= 1000;
+                                }
+
+                                var line1 = new FormattedText($"OPL = {string.Format(CultureInfo.CurrentCulture, format, opl)}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
+                                var line2 = new FormattedText($"RI = {ri.ToString("F3", CultureInfo.CurrentCulture)}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
+                                var line3 = new FormattedText($"{typeof(Dimension).GetEnumName(dimen.dimension)} = {string.Format(CultureInfo.CurrentCulture, format, opl / ri - (dimen.dimension == Dimension.AD ? adAdjustment : 0))}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, FontFamily.GetTypefaces().First(), FontSize, Brushes.Red, new NumberSubstitution(), TextFormattingMode.Display, 96);
+
+                                var adjustX = 0D;
+
+                                if (dimensions.Select(x => x.dimension).OrderBy(x => (byte)x).SequenceEqual([Dimension.RT, Dimension.ChT]))
+                                {
+                                    adjustX = (dimen.dimension == Dimension.RT ? -0.5 : 0.5) * Math.Max(Math.Max(line1.Width, line2.Width), line3.Width);
+                                }
+
+                                drawingContext.DrawText(line1, new Point((min + max - line1.Width) / 2 + adjustX, yTop + 10 + 20));
+                                drawingContext.DrawText(line2, new Point((min + max - line2.Width) / 2 + adjustX, yTop + 10 + 20 + line1.Height));
+                                drawingContext.DrawText(line3, new Point((min + max - line3.Width) / 2 + adjustX, yTop + 10 + 20 + line1.Height + line2.Height));
                             }
                         }
                     }

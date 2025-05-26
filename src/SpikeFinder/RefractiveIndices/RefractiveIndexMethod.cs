@@ -77,6 +77,7 @@ namespace SpikeFinder.RefractiveIndices
                 Dimension.VD => SfMachineSettings.Instance.GetVitreousRefractiveIndex(_vitreousMaterials[measureMode], wavelength, this),
                 Dimension.RT => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.RetinaRefractiveIndex).ComputeRefractiveIndex(wavelength),
                 Dimension.AL => AxialLength(wavelength, measureMode),
+                Dimension.ChT => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.ChoroidRefractiveIndex).ComputeRefractiveIndex(wavelength),
                 _ => 0
             };
         }
