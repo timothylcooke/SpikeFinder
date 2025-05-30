@@ -469,8 +469,8 @@ namespace SpikeFinder.Controls
                         c == CursorToDrag(Mouse.GetPosition(this))))
                     {
                         // Label the cursor.
-                        //var label = GetText(c.DisplayName);
-                        //drawingContext.DrawText(label, PixelToScreenCoordinates(c.X!.Value) - new Vector(label.Width / 2, CursorStartDragWithin + label.Height));
+                        var label = GetText(c.DisplayName);
+                        drawingContext.DrawText(label, PixelToScreenCoordinates(c.X!.Value) - new Vector(label.Width / 2, CursorStartDragWithin + label.Height));
 
                         // Draw the dimensions determined by this point.
                         var dimensions = GetDimensionsAffectedByCursor(c.CursorElement).ToList();
