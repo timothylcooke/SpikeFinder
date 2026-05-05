@@ -4,9 +4,11 @@ on:
   push:
     branches:
     - main
+    - lens-layer-beta
   pull_request:
     branches:
     - main
+    - lens-layer-beta
   workflow_dispatch:
 
 jobs:
