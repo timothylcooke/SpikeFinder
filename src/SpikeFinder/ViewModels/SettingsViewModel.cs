@@ -38,8 +38,11 @@ namespace SpikeFinder.ViewModels
             PseudophakicSiliconeRefractiveIndex = SfMachineSettings.Instance.PseudophakicSiliconeRefractiveIndex;
             RetinaRefractiveIndex = SfMachineSettings.Instance.RetinaRefractiveIndex;
             SiliconeOilRefractiveIndex = SfMachineSettings.Instance.SiliconeOilRefractiveIndex;
+			CortexRefractiveIndex = SfMachineSettings.Instance.CortexRefractiveIndex;
+			NucleusRefractiveIndex = SfMachineSettings.Instance.NucleusRefractiveIndex;
             Retina200Microns = SfMachineSettings.Instance.Retina200Microns;
             EnableChoroidThickness = SfMachineSettings.Instance.EnableChoroidThickness;
+            EnableLensLayers = SfMachineSettings.Instance.EnableLensLayers;
 
             string? connStr = null;
             try
@@ -189,8 +192,11 @@ namespace SpikeFinder.ViewModels
             settings.PseudophakicSiliconeRefractiveIndex = PseudophakicSiliconeRefractiveIndex;
             settings.RetinaRefractiveIndex = RetinaRefractiveIndex;
             settings.SiliconeOilRefractiveIndex = SiliconeOilRefractiveIndex;
+			settings.CortexRefractiveIndex = CortexRefractiveIndex;
+			settings.NucleusRefractiveIndex = NucleusRefractiveIndex;
             settings.Retina200Microns = Retina200Microns;
             settings.EnableChoroidThickness = EnableChoroidThickness;
+            settings.EnableLensLayers = EnableLensLayers;
         }
 
         [Reactive] public string SqliteDatabasePath { get; set; }
@@ -217,10 +223,14 @@ namespace SpikeFinder.ViewModels
         [Reactive] public string PseudophakicSiliconeRefractiveIndex { get; set; }
         [Reactive] public string RetinaRefractiveIndex { get; set; }
         [Reactive] public string SiliconeOilRefractiveIndex { get; set; }
+        [Reactive] public string ChoroidRefractiveIndex { get; set; }
+        [Reactive] public string CortexRefractiveIndex { get; set; }
+        [Reactive] public string NucleusRefractiveIndex { get; set; }
         public object[] RefractiveIndexMethods { get; }
 
         [Reactive] public bool Retina200Microns { get; set; }
         [Reactive] public bool EnableChoroidThickness { get; set; }
+        [Reactive] public bool EnableLensLayers { get; set; }
 
 
         public enum SettingsPage

@@ -1,4 +1,5 @@
 ﻿using FuzzySharp;
+using SpikeFinder.Attributes;
 using SpikeFinder.Extensions;
 using SpikeFinder.RefractiveIndices;
 using SpikeFinder.Settings;
@@ -6,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using static SpikeFinder.Models.MeasureMode;
 
 namespace SpikeFinder.Models
@@ -125,6 +127,31 @@ namespace SpikeFinder.Models
                 return null;
             }
         }
+        public double? SpikeFinderAC1α => GetSpikefinderThickness(Dimension.AnteriorC1α);
+        public double? SpikeFinderAC1β => GetSpikefinderThickness(Dimension.AnteriorC1β);
+        public double? SpikeFinderAC2 => GetSpikefinderThickness(Dimension.AnteriorC2);
+        public double? SpikeFinderAC3 => GetSpikefinderThickness(Dimension.AnteriorC3);
+        public double? SpikeFinderAC4 => GetSpikefinderThickness(Dimension.AnteriorC4);
+        public double? SpikeFinderNucleus => GetSpikefinderThickness(Dimension.Nucleus);
+        public double? SpikeFinderPC4 => GetSpikefinderThickness(Dimension.PosteriorC4);
+        public double? SpikeFinderPC3 => GetSpikefinderThickness(Dimension.PosteriorC3);
+        public double? SpikeFinderPC2 => GetSpikefinderThickness(Dimension.PosteriorC2);
+        public double? SpikeFinderPC1β => GetSpikefinderThickness(Dimension.PosteriorC1β);
+        public double? SpikeFinderPC1α => GetSpikefinderThickness(Dimension.PosteriorC1α);
+
+        private double? GetSpikefinderThickness(Dimension dim)
+        {
+            if (typeof(Dimension).GetEnumName(dim) is { } enumName && typeof(Dimension).GetField(enumName) is { } @enum && @enum.GetCustomAttribute<DimensionCursorsAttribute>() is { } cursors)
+            {
+                if (PersistedSpikes != null && Wavelength != null && MeasureMode is { } mm)
+                {
+                    return ((int?)typeof(PersistedSpikes).GetProperty(typeof(CursorElement).GetEnumName(cursors.End)!)!.GetValue(PersistedSpikes) - (int?)typeof(PersistedSpikes).GetProperty(typeof(CursorElement).GetEnumName(cursors.Start)!)!.GetValue(PersistedSpikes)) / 1250.0 / RefractiveIndexMethod.Current.RefractiveIndex(dim, mm, Wavelength.Value);
+                }
+            }
+
+            return null;
+        }
+
         public double? SpikeFinderAL
         {
             get
@@ -193,6 +220,23 @@ namespace SpikeFinder.Models
         public void OnChoroidRefractiveIndexChanged()
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderChT)));
+        }
+        public void OnCortexRefractiveIndexChanged()
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderAC1α)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderAC1β)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderAC2)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderAC3)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderAC4)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderPC4)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderPC3)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderPC2)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderPC1β)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderPC1α)));
+        }
+        public void OnNucleusRefractiveIndexChanged()
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SpikeFinderNucleus)));
         }
 
         public override int GetHashCode()

@@ -11,7 +11,7 @@
                  Title="{Binding Title}" Height="450" Width="800">
     <mah:MetroWindow.LeftWindowCommands>
         <mah:WindowCommands>
-            <Button ToolTip="Back" Command="{Binding CurrentViewModel.NavigateBackCommand}" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, ConverterParameter='x ? `Visible` : `Collapsed`', Converter={StaticResource Math}}">
+            <Button ToolTip="Back (Alt-Left)" Command="{Binding CurrentViewModel.NavigateBackCommand}" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, ConverterParameter='x ? `Visible` : `Collapsed`', Converter={StaticResource Math}}">
                 <Rectangle Width="20" Height="20" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}">
                     <Rectangle.OpacityMask>
                         <VisualBrush Stretch="Uniform">
@@ -56,7 +56,7 @@
                 </Rectangle>
             </Button>
 
-            <Button ToolTip="Save" Command="{Binding CurrentViewModel.SaveCommand}" Visibility="{Binding Command, RelativeSource={RelativeSource Self}, ConverterParameter='x == null ? `Collapsed` : `Visible`', Converter={StaticResource Math}}">
+            <Button ToolTip="Save (Control+S)" Command="{Binding CurrentViewModel.SaveCommand}" Visibility="{Binding Command, RelativeSource={RelativeSource Self}, ConverterParameter='x == null ? `Collapsed` : `Visible`', Converter={StaticResource Math}}">
                 <Rectangle Width="20" Height="20" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}">
                     <Rectangle.OpacityMask>
                         <VisualBrush Stretch="Uniform">
@@ -70,6 +70,10 @@
 
         </mah:WindowCommands>
     </mah:MetroWindow.RightWindowCommands>
+    <mah:MetroWindow.InputBindings>
+        <KeyBinding Command="{Binding CurrentViewModel.NavigateBackCommand}" Key="Left" Modifiers="Alt" />
+        <KeyBinding Command="{Binding CurrentViewModel.SaveCommand}" Key="S" Modifiers="Ctrl" />
+    </mah:MetroWindow.InputBindings>
     <Grid>
         <rxui:RoutedViewHost Router="{Binding HostScreen.Router}" Focusable="False" />
     </Grid>

@@ -1,32 +1,31 @@
 ﻿using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using System;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 
-namespace SpikeFinder.ViewModels
+namespace SpikeFinder.ViewModels;
+
+public partial class LoadingItemViewModel : ReactiveObject
 {
-    public class LoadingItemViewModel : ReactiveObject
+    public LoadingItemViewModel(int step, string title)
     {
-        public LoadingItemViewModel(int step, string title)
-        {
-            Step = step;
-            Title = title;
-        }
-        public IDisposable Initialize(IObservable<long?> totalExams)
-        {
-            return new CompositeDisposable(
-                    totalExams.ToPropertyEx(this, x => x.MaxPossibleProgress),
-                    this.WhenAnyValue(x => x.MaxPossibleProgress, x => x.SlowlyUpdatingProgress, (max, current) => (max, current)).Select(x => x.max.HasValue && x.current >= x.max.Value).ToPropertyEx(this, x => x.IsFinished),
-                    this.WhenAnyValue(x => x.MaxPossibleProgress, x => x.SlowlyUpdatingProgress, (max, current) => (max, current)).Select(x => !x.max.HasValue || (x.current == 0 && x.max > 0)).ToPropertyEx(this, x => x.IsIndeterminate)
-                );
-        }
-        public int Step { get; }
-        [Reactive] public string Title { get; set; }
-        [ObservableAsProperty] public bool IsIndeterminate { get; }
-        [ObservableAsProperty] public bool IsFinished { get; }
-        [ObservableAsProperty] public long? MaxPossibleProgress { get; }
-        [Reactive] public long SlowlyUpdatingProgress { get; set; }
-        public long ActualProgress { get; set; } = 0;
+        Step = step;
+        Title = title;
     }
+    public IDisposable Initialize(IObservable<long?> totalExams)
+    {
+        return new CompositeDisposable(
+                totalExams.BindTo(this, x => x.MaxPossibleProgress),
+                this.WhenAnyValue(x => x.MaxPossibleProgress, x => x.SlowlyUpdatingProgress, (max, current) => (max, current)).Select(x => x.max.HasValue && x.current >= x.max.Value).BindTo(this, x => x.IsFinished),
+                this.WhenAnyValue(x => x.MaxPossibleProgress, x => x.SlowlyUpdatingProgress, (max, current) => (max, current)).Select(x => !x.max.HasValue || (x.current == 0 && x.max > 0)).BindTo(this, x => x.IsIndeterminate)
+            );
+    }
+    public int Step { get; }
+    [Reactive] private string _title;
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _isIndeterminate;
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _isFinished;
+    [Reactive(SetModifier = AccessModifier.Private)] private long? _maxPossibleProgress;
+    [Reactive] private long _slowlyUpdatingProgress;
+    public long ActualProgress { get; set; } = 0;
 }

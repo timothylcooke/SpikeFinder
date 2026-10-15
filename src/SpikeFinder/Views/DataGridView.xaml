@@ -7,6 +7,7 @@
                           xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                           xmlns:sf="http://schemas.syncfusion.com/wpf"
                           xmlns:converters="clr-namespace:SpikeFinder.Converters"
+                          xmlns:settings="clr-namespace:SpikeFinder.Settings"
                           xmlns:viewModels="clr-namespace:SpikeFinder.ViewModels"
                           mc:Ignorable="d"
                           d:DataContext="{d:DesignInstance viewModels:DataGridViewModel}"
@@ -58,7 +59,18 @@
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderVD, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderRT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
                 <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAL, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" />
-                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderChT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderChT, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableChoroidThickness, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAC1α, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAC1β, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAC2, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAC3, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderAC4, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderNucleus, Converter={StaticResource Math}, ConverterParameter='$`{x:0.00}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderPC4, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderPC3, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderPC2, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderPC1β, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
+                <sf:GridTextColumn ValueBinding="{Binding SpikeFinderPC1α, Converter={StaticResource Math}, ConverterParameter='$`{x*1000:000}`'}" IsHidden="{Binding EnableLensLayers, ConverterParameter=!x, Converter={StaticResource Math}, Source={x:Static settings:SfMachineSettings.Instance}}" />
             </sf:SfDataGrid.Columns>
         </sf:SfDataGrid>
     </Grid>

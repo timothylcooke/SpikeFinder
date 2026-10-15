@@ -148,7 +148,7 @@ namespace SpikeFinder.ViewModels
                                 });
                         })
                         .CatchAndShowErrors(true)
-                        .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE], null));
+                        .Select(x => new LenstarCursorPositions(x[CursorElement.AnteriorCornea], x[CursorElement.PosteriorCornea], x[CursorElement.AnteriorLens], x[CursorElement.PosteriorLens], x[CursorElement.ILM], x[CursorElement.RPE], null, null, null, null, null, null, null, null, null, null, null, null, null));
 
 
                     //Increment progress on the main thread.
@@ -184,7 +184,7 @@ namespace SpikeFinder.ViewModels
                 else
                 {
                     var s = exam.PersistedSpikes;
-                    cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE, s.Choroid));
+                    cursors = Observable.Return(new LenstarCursorPositions(1000, s.PosteriorCornea, s.AnteriorLens, s.PosteriorLens, s.ILM, s.RPE, s.Choroid, s.Aqueous_C1α, s.C1α_C1β, s.C1β_C2, s.C2_C3, s.C3_C4, s.C4_Nucleus, s.Nucleus_C4, s.C4_C3, s.C3_C2, s.C2_C1β, s.C1β_C1α, s.C1α_Vitreous));
                 }
 
                 d(spikesToRender
@@ -224,7 +224,19 @@ namespace SpikeFinder.ViewModels
                 CursorPosition(cursors, CursorElement.PosteriorLens),
                 CursorPosition(cursors, CursorElement.ILM),
                 CursorPosition(cursors, CursorElement.RPE),
-                CursorPosition(cursors, CursorElement.Choroid)
+                CursorPosition(cursors, CursorElement.Choroid),
+                CursorPosition(cursors, CursorElement.Aqueous_C1α),
+                CursorPosition(cursors, CursorElement.C1α_C1β),
+                CursorPosition(cursors, CursorElement.C1β_C2),
+                CursorPosition(cursors, CursorElement.C2_C3),
+                CursorPosition(cursors, CursorElement.C3_C4),
+                CursorPosition(cursors, CursorElement.C4_Nucleus),
+                CursorPosition(cursors, CursorElement.Nucleus_C4),
+                CursorPosition(cursors, CursorElement.C4_C3),
+                CursorPosition(cursors, CursorElement.C3_C2),
+                CursorPosition(cursors, CursorElement.C2_C1β),
+                CursorPosition(cursors, CursorElement.C1β_C1α),
+                CursorPosition(cursors, CursorElement.C1α_Vitreous)
             );
         }
         private static int? CursorPosition(IList<CursorMarker> cursors, CursorElement element)

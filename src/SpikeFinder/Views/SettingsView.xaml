@@ -223,10 +223,13 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="20" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <CheckBox x:Name="Retina200Microns" IsChecked="{Binding Retina200Microns}" Content="Force _200 Micron Retina" />
                 <CheckBox Grid.Row="2" IsChecked="{Binding EnableChoroidThickness}" Content="Enable _Choroid Thickness" />
+                <CheckBox Grid.Row="4" IsChecked="{Binding EnableLensLayers}" Content="Enable _Lens Layers" />
             </Grid>
         </ScrollViewer>
     </Grid>

@@ -78,6 +78,8 @@ namespace SpikeFinder.RefractiveIndices
                 Dimension.RT => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.RetinaRefractiveIndex).ComputeRefractiveIndex(wavelength),
                 Dimension.AL => AxialLength(wavelength, measureMode),
                 Dimension.ChT => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.ChoroidRefractiveIndex).ComputeRefractiveIndex(wavelength),
+                Dimension.AnteriorC1α or Dimension.AnteriorC1β or Dimension.AnteriorC2 or Dimension.AnteriorC3 or Dimension.AnteriorC4 or Dimension.PosteriorC4 or Dimension.PosteriorC3 or Dimension.PosteriorC2 or Dimension.PosteriorC1β or Dimension.PosteriorC1α => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.CortexRefractiveIndex).ComputeRefractiveIndex(wavelength),
+                Dimension.Nucleus => this is AirRefractiveIndices ? 1 : CustomRefractiveIndex.FromEquation(SfMachineSettings.Instance.NucleusRefractiveIndex).ComputeRefractiveIndex(wavelength),
                 _ => 0
             };
         }

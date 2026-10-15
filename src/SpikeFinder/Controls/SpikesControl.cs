@@ -33,7 +33,27 @@ namespace SpikeFinder.Controls
             ContextMenu.DataContext = this;
 
             if (SfMachineSettings.Instance.EnableChoroidThickness)
-                CursorElementsInOrder[CursorElement.Choroid] = 6;
+                CursorElementsInOrder[CursorElement.Choroid] = 16;
+
+            if (SfMachineSettings.Instance.EnableLensLayers)
+            {
+                CursorElementsInOrder.Remove(CursorElement.AnteriorLens);
+                CursorElementsInOrder.Remove(CursorElement.PosteriorLens);
+
+                CursorElementsInOrder[CursorElement.Aqueous_C1α] = 2;
+                CursorElementsInOrder[CursorElement.C1α_C1β] = 3;
+                CursorElementsInOrder[CursorElement.C1β_C2] = 4;
+                CursorElementsInOrder[CursorElement.C2_C3] = 5;
+                CursorElementsInOrder[CursorElement.C3_C4] = 6;
+                CursorElementsInOrder[CursorElement.C4_Nucleus] = 7;
+                CursorElementsInOrder[CursorElement.Nucleus_C4] = 8;
+                CursorElementsInOrder[CursorElement.C4_C3] = 9;
+                CursorElementsInOrder[CursorElement.C3_C2] = 10;
+                CursorElementsInOrder[CursorElement.C2_C1β] = 11;
+                CursorElementsInOrder[CursorElement.C1β_C1α] = 12;
+                CursorElementsInOrder[CursorElement.C1α_Vitreous] = 13;
+
+            }
 
             this.WhenActivated(d =>
             {
@@ -91,7 +111,7 @@ namespace SpikeFinder.Controls
                                 .CombineLatest(Observable.Return(x), (y, z) => z))
                     .Merge() // Switch() does not work. We need to listen to _all_ cursors, not just the last cursor.
                     .Throttle(TimeSpan.FromMilliseconds(5), RxApp.MainThreadScheduler)
-                    .Select(_ => (Cursors as IEnumerable<CursorPosition> ?? new CursorPosition[0]).Where(x => !x.X.HasValue).OrderBy(x => CursorElementsInOrder[x.CursorElement]).ToList())
+                    .Select(_ => (Cursors as IEnumerable<CursorPosition> ?? []).Where(x => !x.X.HasValue).OrderBy(x => CursorElementsInOrder[x.CursorElement]).ToList())
                     .BindTo(this, x => x.UnmarkedCursors));
             });
         }
@@ -254,10 +274,12 @@ namespace SpikeFinder.Controls
         {
             { CursorElement.AnteriorCornea, 0 },
             { CursorElement.PosteriorCornea, 1 },
+
             { CursorElement.AnteriorLens, 2 },
             { CursorElement.PosteriorLens, 3 },
-            { CursorElement.ILM, 4 },
-            { CursorElement.RPE, 5 },
+
+            { CursorElement.ILM, 16 },
+            { CursorElement.RPE, 17 },
         };
 
         public List<CursorPosition> UnmarkedCursors
@@ -469,8 +491,8 @@ namespace SpikeFinder.Controls
                         c == CursorToDrag(Mouse.GetPosition(this))))
                     {
                         // Label the cursor.
-                        //var label = GetText(c.DisplayName);
-                        //drawingContext.DrawText(label, PixelToScreenCoordinates(c.X!.Value) - new Vector(label.Width / 2, CursorStartDragWithin + label.Height));
+                        var label = GetText(c.DisplayName);
+                        drawingContext.DrawText(label, PixelToScreenCoordinates(c.X!.Value) - new Vector(label.Width / 2, CursorStartDragWithin + label.Height));
 
                         // Draw the dimensions determined by this point.
                         var dimensions = GetDimensionsAffectedByCursor(c.CursorElement).ToList();
@@ -524,9 +546,10 @@ namespace SpikeFinder.Controls
 
                                 var adjustX = 0D;
 
-                                if (dimensions.Select(x => x.dimension).OrderBy(x => (byte)x).SequenceEqual([Dimension.RT, Dimension.ChT]))
+                                var allDimensions = dimensions.Select(x => x.dimension).OrderBy(x => (byte)x).ToList();
+                                if (allDimensions is [Dimension.RT, Dimension.ChT] or [Dimension.AnteriorC1α, Dimension.AnteriorC1β] or [Dimension.AnteriorC1β, Dimension.AnteriorC2] or [Dimension.AnteriorC2, Dimension.AnteriorC3] or [Dimension.AnteriorC3, Dimension.AnteriorC4] or [Dimension.PosteriorC4, Dimension.PosteriorC3] or [Dimension.PosteriorC3, Dimension.PosteriorC2] or [Dimension.PosteriorC2, Dimension.PosteriorC1β] or [Dimension.PosteriorC1β, Dimension.PosteriorC1α])
                                 {
-                                    adjustX = (dimen.dimension == Dimension.RT ? -0.5 : 0.5) * Math.Max(Math.Max(line1.Width, line2.Width), line3.Width);
+                                    adjustX = (dimen.dimension == allDimensions[0] ? -0.5 : 0.5) * Math.Max(Math.Max(line1.Width, line2.Width), line3.Width);
                                 }
 
                                 drawingContext.DrawText(line1, new Point((min + max - line1.Width) / 2 + adjustX, yTop + 10 + 20));

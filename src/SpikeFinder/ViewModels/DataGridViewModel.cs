@@ -76,6 +76,16 @@ namespace SpikeFinder.ViewModels
                 .Select(_ => Exams.Where(x => x.HasSpikes))
                 .Subscribe(x => x.ForEach(y => y.OnChoroidRefractiveIndexChanged())));
 
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.CortexRefractiveIndex).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes))
+                .Subscribe(x => x.ForEach(y => y.OnCortexRefractiveIndexChanged())));
+
+            d(SfMachineSettings.Instance.WhenAnyValue(x => x.NucleusRefractiveIndex).DistinctUntilChanged()
+                .Skip(1)
+                .Select(_ => Exams.Where(x => x.HasSpikes))
+                .Subscribe(x => x.ForEach(y => y.OnNucleusRefractiveIndexChanged())));
+
             d(sourceCache);
         }
 
